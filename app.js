@@ -504,7 +504,11 @@
     kpiNextRenewal.textContent = `다음 연차 갱신: ${calc.next_renewal_date}`;
 
     kpiGranted.textContent = calc.total_granted.toFixed(1);
-    kpiRuleDesc.textContent = calc.rule_description;
+    if (calc.absence_months_deducted > 0) {
+      kpiRuleDesc.innerHTML = `${calc.rule_description}<br><span class="badge badge-danger" style="margin-top:4px; font-size:0.75rem; display:inline-block;">⚠️ 개근 미달(결근) ${calc.absence_months_deducted}개월 미발생 반영</span>`;
+    } else {
+      kpiRuleDesc.textContent = calc.rule_description;
+    }
 
     kpiUsed.textContent = calc.used_days.toFixed(1);
     
@@ -588,19 +592,21 @@
 
     usageEmptyState.style.display = 'none';
     usageTableBody.innerHTML = filtered.map((item, idx) => {
+      const isAbsence = item.is_absence || item.leave_type.includes('결근');
       const isFull = item.leave_type.includes('년차');
-      const pillClass = isFull ? 'type-pill type-full' : 'type-pill type-half';
+      const pillClass = isAbsence ? 'type-pill badge-danger' : (isFull ? 'type-pill type-full' : 'type-pill type-half');
       const hoursText = (item.start_time && item.end_time) ? `${item.start_time} ~ ${item.end_time}` : (item.time_code || '-');
+      const daysText = isAbsence ? '<span class="text-danger" style="font-size:0.82rem; font-weight:700;">0.0일 (월차 미발생)</span>' : `<strong>${item.days.toFixed(1)}일</strong>`;
       
       return `
-        <tr>
+        <tr class="${isAbsence ? 'row-absence' : ''}">
           <td>${idx + 1}</td>
           <td><strong>${item.date}</strong></td>
           <td>${item.day_of_week || '-'}</td>
           <td><span class="${pillClass}">${item.leave_type}</span></td>
-          <td><strong>${item.days.toFixed(1)}일</strong></td>
+          <td>${daysText}</td>
           <td><span class="text-muted">${hoursText}</span></td>
-          <td>${item.note || '-'}</td>
+          <td>${item.note || (isAbsence ? '<span class="text-danger">개근 미달로 해당 월 월차 미발생</span>' : '-')}</td>
         </tr>
       `;
     }).join('');
@@ -915,9 +921,14 @@
         ? `<strong>${emp.name}</strong> <span class="badge badge-warning" style="font-size:0.7rem; padding: 2px 5px; vertical-align: middle;">1년미만</span>`
         : `<strong>${emp.name}</strong>`;
 
-      const grantedHtml = isUnder
-        ? `<strong>${calc.total_granted.toFixed(1)}</strong> <small class="text-muted">월차</small>`
-        : `<strong>${calc.total_granted.toFixed(1)}</strong>`;
+      let grantedHtml = `<strong>${calc.total_granted.toFixed(1)}</strong>`;
+      if (isUnder) {
+        if (calc.absence_months_deducted > 0) {
+          grantedHtml += ` <span class="badge badge-danger" style="font-size:0.65rem; padding: 2px 4px;" title="결근으로 인한 ${calc.absence_months_deducted}개월 미발생">결근 -${calc.absence_months_deducted}</span>`;
+        } else {
+          grantedHtml += ` <small class="text-muted">월차</small>`;
+        }
+      }
 
       return `
         <tr class="${isUnder ? 'row-under1' : ''}">

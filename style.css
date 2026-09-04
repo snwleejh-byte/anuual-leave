@@ -1170,6 +1170,14 @@ body.theme-dark .icon-moon { display: none; }
   color: #fff;
 }
 
+.row-under1 {
+  background: rgba(245, 158, 11, 0.03);
+}
+
+.row-absence {
+  background: rgba(239, 68, 68, 0.05);
+}
+
 /* Footer */
 .app-footer {
   margin-top: 60px;
