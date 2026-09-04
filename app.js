@@ -701,6 +701,8 @@
       renderAdminTable();
     }
 
+    document.body.classList.add('admin-view-active');
+
     // 2. 캐시가 없거나 최초 진입인 경우 고속 로드 실행
     if ((!snwData || !snwData.employees || snwData.employees.length === 0) && gasApiUrl) {
       loadAdminDataFromGas(false);
@@ -713,6 +715,7 @@
   }
 
   function closeAdminView() {
+    document.body.classList.remove('admin-view-active');
     sessionStorage.removeItem('snw_is_admin');
     adminSection.style.display = 'none';
     if (adminHeaderControls) adminHeaderControls.style.display = 'none';

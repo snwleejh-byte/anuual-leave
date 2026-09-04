@@ -947,12 +947,21 @@ body.theme-dark .icon-moon { display: none; }
 }
 
 /* 3. ADMIN MANAGEMENT VIEW */
+/* Admin Widescreen Mode - 가로 스크롤 없이 한눈에 조회 버튼까지 쾌적하게 표시 */
+body.admin-view-active .header-inner,
+body.admin-view-active .main-container {
+  max-width: 96% !important;
+  width: 96% !important;
+  transition: max-width 0.25s ease, width 0.25s ease;
+}
+
 .admin-container {
-  padding: 32px;
+  padding: 24px 28px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
   animation: fadeIn 0.4s ease-out;
+  width: 100%;
 }
 .admin-header {
   display: flex;
@@ -1152,22 +1161,63 @@ body.theme-dark .icon-moon { display: none; }
   margin: 0;
 }
 
+.admin-table {
+  width: 100%;
+  table-layout: auto;
+  border-collapse: collapse;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 10px 8px;
+  font-size: 0.85rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
 .admin-table th {
   cursor: pointer;
+  user-select: none;
+  font-weight: 700;
+  letter-spacing: -0.2px;
 }
+
+.admin-table th:nth-child(2),
+.admin-table td:nth-child(2) {
+  text-align: left; /* 성명 */
+  font-weight: 600;
+}
+
+.admin-table th:nth-child(3),
+.admin-table td:nth-child(3) {
+  text-align: left; /* 부서 */
+}
+
+/* 마지막 조회 버튼 열은 여백 최적화 및 시인성 강화 */
+.admin-table th:last-child,
+.admin-table td:last-child {
+  text-align: center;
+  padding: 6px 10px;
+}
+
 .admin-table .btn-view-emp {
-  background: var(--primary-light);
-  color: var(--primary);
+  background: var(--primary);
+  color: #ffffff;
   border: none;
-  padding: 4px 10px;
+  padding: 5px 12px;
   border-radius: 6px;
-  font-size: 0.78rem;
+  font-size: 0.82rem;
   font-weight: 700;
   cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 2px 4px var(--primary-glow);
+  transition: all var(--transition-fast);
 }
+
 .admin-table .btn-view-emp:hover {
-  background: var(--primary);
-  color: #fff;
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px var(--primary-glow);
 }
 
 .row-under1 {
