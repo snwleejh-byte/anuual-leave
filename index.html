@@ -31,17 +31,21 @@
         <div class="system-date" id="systemDateDisplay">
           <span class="icon">📅</span> 기준일자: <strong>2026.09.03</strong>
         </div>
-        <button type="button" class="btn-pill" id="refreshBtn" title="데이터 새로고침">
+        <button type="button" class="btn-pill" id="refreshBtn" title="데이터 새로고침" style="display: none;">
           <span class="icon spin-target">🔄</span> 새로고침
         </button>
-        <button type="button" class="btn-pill" id="configApiBtn" title="구글 시트 실시간 연동 설정">
+        <button type="button" class="btn-pill" id="configApiBtn" title="구글 시트 실시간 연동 설정" style="display: none;">
           <span class="icon">🔗</span> 구글 시트 연동
         </button>
+        <div id="adminHeaderControls" style="display: none; align-items: center; gap: 8px;">
+          <span class="badge badge-primary">🔒 관리자 모드</span>
+          <button type="button" class="btn-pill" id="adminLogoutHeaderBtn">로그아웃</button>
+        </div>
         <button type="button" class="btn-icon theme-toggle" id="themeToggleBtn" title="화면 모드 전환" aria-label="화면 모드 전환">
           <span class="icon-sun">☀️</span>
           <span class="icon-moon">🌙</span>
         </button>
-        <button type="button" class="btn-pill btn-admin-nav" id="adminModeBtn">
+        <button type="button" class="btn-pill btn-admin-nav" id="adminModeBtn" style="display: none;">
           <span class="icon">⚙️</span> 관리자 현황
         </button>
       </div>
@@ -54,45 +58,87 @@
     <!-- 1. LOGIN SECTION -->
     <section class="section-card login-card" id="loginSection">
       <div class="login-header">
-        <div class="icon-circle">🔐</div>
-        <h2>본인 확인 및 연차 조회</h2>
-        <p class="desc">사번을 몰라도 <strong>이름</strong>과 <strong>생년월일</strong>로 간편하게 조회할 수 있습니다.</p>
+        <div class="icon-circle" id="loginHeaderIcon">🔐</div>
+        <h2 id="loginHeaderTitle">본인 확인 및 연차 조회</h2>
+        <p class="desc" id="loginHeaderDesc">사번을 몰라도 <strong>이름</strong>과 <strong>생년월일</strong>로 간편하게 조회할 수 있습니다.</p>
       </div>
 
-      <form id="loginForm" class="login-form" autocomplete="off">
-        <div class="form-group">
-          <label for="inputName">성명 (이름)</label>
-          <div class="input-wrapper">
-            <span class="input-icon">👤</span>
-            <input type="text" id="inputName" placeholder="예: 홍길동" required>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="inputBirth">생년월일 (6자리 또는 8자리)</label>
-          <div class="input-wrapper">
-            <span class="input-icon">🎂</span>
-            <input type="text" id="inputBirth" placeholder="예: 921108 또는 19921108" maxlength="10" required>
-          </div>
-          <span class="input-hint">주민등록번호 앞 6자리(YYMMDD)를 입력해주세요.</span>
-        </div>
-
-        <div class="login-alert" id="loginError" style="display: none;"></div>
-
-        <button type="submit" class="btn-primary btn-block btn-lg" id="submitLoginBtn">
-          <span class="btn-text">연차 조회하기</span>
-          <span class="arrow-icon">→</span>
+      <!-- Login Tabs -->
+      <div class="login-tabs">
+        <button type="button" class="login-tab-btn active" id="tabEmployeeBtn">
+          <span class="tab-icon">👤</span> 사원 연차 조회
         </button>
-      </form>
+        <button type="button" class="login-tab-btn" id="tabAdminBtn">
+          <span class="tab-icon">🔒</span> 관리자 로그인
+        </button>
+      </div>
 
-      <!-- Quick Demo Selector for fast evaluation -->
-      <div class="quick-demo-box">
-        <div class="demo-title">
-          <span class="tag">빠른 테스트 선택</span> 사원명을 선택하면 자동 입력됩니다
+      <!-- Employee Login Form -->
+      <div id="employeeLoginWrapper">
+        <form id="loginForm" class="login-form" autocomplete="off">
+          <div class="form-group">
+            <label for="inputName">성명 (이름)</label>
+            <div class="input-wrapper">
+              <span class="input-icon">👤</span>
+              <input type="text" id="inputName" placeholder="예: 홍길동" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="inputBirth">생년월일 (6자리 또는 8자리)</label>
+            <div class="input-wrapper">
+              <span class="input-icon">🎂</span>
+              <input type="text" id="inputBirth" placeholder="예: 921108 또는 19921108" maxlength="10" required>
+            </div>
+            <span class="input-hint">주민등록번호 앞 6자리(YYMMDD)를 입력해주세요.</span>
+          </div>
+
+          <div class="login-alert" id="loginError" style="display: none;"></div>
+
+          <button type="submit" class="btn-primary btn-block btn-lg" id="submitLoginBtn">
+            <span class="btn-text">연차 조회하기</span>
+            <span class="arrow-icon">→</span>
+          </button>
+        </form>
+
+        <!-- Quick Demo Selector for fast evaluation -->
+        <div class="quick-demo-box">
+          <div class="demo-title">
+            <span class="tag">빠른 테스트 선택</span> 사원명을 선택하면 자동 입력됩니다
+          </div>
+          <div class="demo-chips" id="demoChipsContainer">
+            <!-- Populated by app.js -->
+          </div>
         </div>
-        <div class="demo-chips" id="demoChipsContainer">
-          <!-- Populated by app.js -->
-        </div>
+      </div>
+
+      <!-- Admin Login Form -->
+      <div id="adminLoginWrapper" style="display: none;">
+        <form id="adminLoginForm" class="login-form" autocomplete="off">
+          <div class="form-group">
+            <label for="inputAdminId">관리자 아이디</label>
+            <div class="input-wrapper">
+              <span class="input-icon">🛡️</span>
+              <input type="text" id="inputAdminId" placeholder="관리자 ID 입력" autocomplete="username" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="inputAdminPw">비밀번호</label>
+            <div class="input-wrapper">
+              <span class="input-icon">🔑</span>
+              <input type="password" id="inputAdminPw" placeholder="비밀번호 입력" autocomplete="current-password" required>
+            </div>
+            <span class="input-hint">인사/총무 관리자 전용 비밀번호를 입력해주세요.</span>
+          </div>
+
+          <div class="login-alert" id="adminLoginError" style="display: none;"></div>
+
+          <button type="submit" class="btn-primary btn-block btn-lg" id="submitAdminLoginBtn">
+            <span class="btn-text">관리자 모드 접속하기</span>
+            <span class="arrow-icon">→</span>
+          </button>
+        </form>
       </div>
 
       <div class="legal-badge">

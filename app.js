@@ -35,7 +35,22 @@
   const dashboardSection = document.getElementById('dashboardSection');
   const adminSection = document.getElementById('adminSection');
 
-  // Login Form Elements
+  // Login Form & Tab Elements
+  const tabEmployeeBtn = document.getElementById('tabEmployeeBtn');
+  const tabAdminBtn = document.getElementById('tabAdminBtn');
+  const employeeLoginWrapper = document.getElementById('employeeLoginWrapper');
+  const adminLoginWrapper = document.getElementById('adminLoginWrapper');
+  const adminLoginForm = document.getElementById('adminLoginForm');
+  const inputAdminId = document.getElementById('inputAdminId');
+  const inputAdminPw = document.getElementById('inputAdminPw');
+  const adminLoginError = document.getElementById('adminLoginError');
+  const submitAdminLoginBtn = document.getElementById('submitAdminLoginBtn');
+  const adminHeaderControls = document.getElementById('adminHeaderControls');
+  const adminLogoutHeaderBtn = document.getElementById('adminLogoutHeaderBtn');
+  const loginHeaderIcon = document.getElementById('loginHeaderIcon');
+  const loginHeaderTitle = document.getElementById('loginHeaderTitle');
+  const loginHeaderDesc = document.getElementById('loginHeaderDesc');
+
   const loginForm = document.getElementById('loginForm');
   const inputName = document.getElementById('inputName');
   const inputBirth = document.getElementById('inputBirth');
@@ -97,6 +112,12 @@
     initTheme();
     setupEventListeners();
     initApiConfig();
+    initLoginTabs();
+
+    if (sessionStorage.getItem('snw_is_admin') === 'true') {
+      openAdminView();
+      return;
+    }
 
     // Load data from window.SNW_DATA or fetch data.json
     if (window.SNW_DATA) {
@@ -222,6 +243,56 @@
       });
       demoChipsContainer.appendChild(chip);
     });
+  }
+
+  // 3.5 Login Tabs (Employee vs Admin Mode)
+  function initLoginTabs() {
+    if (!tabEmployeeBtn || !tabAdminBtn) return;
+
+    tabEmployeeBtn.addEventListener('click', () => switchLoginTab('employee'));
+    tabAdminBtn.addEventListener('click', () => switchLoginTab('admin'));
+
+    if (adminLoginForm) {
+      adminLoginForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const idVal = inputAdminId.value.trim();
+        const pwVal = inputAdminPw.value.trim();
+
+        if (idVal !== 'snw' || pwVal !== '2524') {
+          adminLoginError.innerHTML = '<strong>[로그인 실패]</strong> 관리자 아이디 또는 비밀번호가 올바르지 않습니다.<br><small style="color:var(--text-secondary);">인사담당자 전용 관리자 계정 정보를 확인해주세요.</small>';
+          adminLoginError.style.display = 'block';
+          return;
+        }
+
+        // Success
+        adminLoginError.style.display = 'none';
+        sessionStorage.setItem('snw_is_admin', 'true');
+        openAdminView();
+      });
+    }
+  }
+
+  function switchLoginTab(type) {
+    if (type === 'employee') {
+      tabEmployeeBtn.classList.add('active');
+      tabAdminBtn.classList.remove('active');
+      employeeLoginWrapper.style.display = 'block';
+      adminLoginWrapper.style.display = 'none';
+      if (loginHeaderIcon) loginHeaderIcon.textContent = '🔐';
+      if (loginHeaderTitle) loginHeaderTitle.textContent = '본인 확인 및 연차 조회';
+      if (loginHeaderDesc) loginHeaderDesc.innerHTML = '사번을 몰라도 <strong>이름</strong>과 <strong>생년월일</strong>로 간편하게 조회할 수 있습니다.';
+      loginError.style.display = 'none';
+    } else {
+      tabAdminBtn.classList.add('active');
+      tabEmployeeBtn.classList.remove('active');
+      employeeLoginWrapper.style.display = 'none';
+      adminLoginWrapper.style.display = 'block';
+      if (loginHeaderIcon) loginHeaderIcon.textContent = '🏢';
+      if (loginHeaderTitle) loginHeaderTitle.textContent = '관리자 시스템 로그인';
+      if (loginHeaderDesc) loginHeaderDesc.innerHTML = '전 사원 연차 관리 대시보드에 접근하기 위한 <strong>관리자 인증</strong>입니다.';
+      if (adminLoginError) adminLoginError.style.display = 'none';
+      if (inputAdminId) inputAdminId.focus();
+    }
   }
 
   // 4. Login & Authentication (Local + Google Apps Script Remote)
@@ -558,27 +629,116 @@
   });
 
   // 8. Admin Management View
-  adminModeBtn.addEventListener('click', () => {
-    openAdminView();
-  });
+  if (adminModeBtn) {
+    adminModeBtn.addEventListener('click', () => {
+      openAdminView();
+    });
+  }
 
-  btnCloseAdminBtn.addEventListener('click', () => {
-    adminSection.style.display = 'none';
-    if (currentEmp) {
-      dashboardSection.style.display = 'flex';
-    } else {
-      loginSection.style.display = 'block';
-    }
-  });
+  if (btnCloseAdminBtn) {
+    btnCloseAdminBtn.addEventListener('click', closeAdminView);
+  }
+  if (adminLogoutHeaderBtn) {
+    adminLogoutHeaderBtn.addEventListener('click', closeAdminView);
+  }
 
   function openAdminView() {
     loginSection.style.display = 'none';
     dashboardSection.style.display = 'none';
     adminSection.style.display = 'flex';
 
+    if (adminHeaderControls) adminHeaderControls.style.display = 'inline-flex';
+    if (configApiBtn) configApiBtn.style.display = 'inline-flex';
+    if (adminModeBtn) adminModeBtn.style.display = 'inline-flex';
+
     renderAdminSummary();
     renderAdminTable();
+
+    // If running on remote mode without local data, fetch roster from GAS
+    if ((!snwData || !snwData.employees || snwData.employees.length === 0) && gasApiUrl) {
+      loadAdminDataFromGas();
+    }
+
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function closeAdminView() {
+    sessionStorage.removeItem('snw_is_admin');
+    adminSection.style.display = 'none';
+    if (adminHeaderControls) adminHeaderControls.style.display = 'none';
+    if (configApiBtn) configApiBtn.style.display = 'none';
+    if (adminModeBtn) adminModeBtn.style.display = 'none';
+
+    if (currentEmp) {
+      dashboardSection.style.display = 'flex';
+    } else {
+      loginSection.style.display = 'block';
+      switchLoginTab('employee');
+    }
+  }
+
+  async function loadAdminDataFromGas() {
+    const tbody = document.getElementById('adminTableBody');
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding: 40px; color: var(--primary);">
+        <div style="font-size: 1.5rem; margin-bottom: 8px;">⏳</div>
+        <div><strong>구글 시트에서 전체 사원 연차 데이터를 안전하게 불러오는 중입니다...</strong></div>
+        <small style="color: var(--text-secondary);">사원 수가 많을 경우 수 초 정도 소요될 수 있습니다.</small>
+      </td></tr>`;
+    }
+
+    try {
+      // Try key=2524 first, fallback to snw2026!
+      let resp = await fetch(`${gasApiUrl}?action=admin&key=2524`, { method: 'GET', redirect: 'follow' });
+      let data = await resp.json();
+      if (!data.success && data.message && data.message.includes('암호')) {
+        resp = await fetch(`${gasApiUrl}?action=admin&key=snw2026!`, { method: 'GET', redirect: 'follow' });
+        data = await resp.json();
+      }
+
+      if (data.success && data.employees) {
+        snwData = {
+          company: data.company || '(주)에스앤더블류',
+          total_employees: data.employees.length,
+          summary: calculateAdminSummary(data.employees),
+          employees: data.employees
+        };
+        populateAdminDeptOptions();
+        renderAdminSummary();
+        renderAdminTable();
+      } else {
+        if (tbody) {
+          tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding: 30px; color: var(--text-secondary);">
+            전체 사원 명단은 사원명부 엑셀 파일을 업로드하시거나 구글 시트 연동을 통해 확인할 수 있습니다.
+          </td></tr>`;
+        }
+      }
+    } catch (err) {
+      console.warn('GAS admin load warning:', err);
+      if (tbody) {
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding: 30px; color: var(--text-secondary);">
+          상단 [📁 사원명부 파일 선택]을 통해 엑셀을 업로드하시면 전체 명단이 즉시 산정되어 표시됩니다.
+        </td></tr>`;
+      }
+    }
+  }
+
+  function calculateAdminSummary(emps) {
+    let granted = 0, used = 0, rem = 0;
+    emps.forEach(e => {
+      if (e.leave_calc) {
+        granted += (e.leave_calc.total_granted || 0);
+        used += (e.leave_calc.used_days || 0);
+        rem += (e.leave_calc.remaining_days || 0);
+      }
+    });
+    const avgRate = granted > 0 ? ((used / granted) * 100).toFixed(1) : 0;
+    return {
+      total_granted: granted,
+      total_used: used,
+      total_remaining: rem,
+      avg_usage_rate: Number(avgRate)
+    };
   }
 
   function populateAdminDeptOptions() {
