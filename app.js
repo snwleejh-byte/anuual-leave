@@ -582,7 +582,7 @@
   function renderUsageTable() {
     if (!currentEmp) return;
 
-    const sourceList = currentUsageMode === 'current' ? (currentEmp.current_usage || []) : (currentEmp.all_usage || []);
+    const sourceList = currentUsageMode === 'current' ? (currentEmp.current_usage || []) : (currentEmp.all_usage || currentEmp.current_usage || []);
     const searchVal = usageSearchInput.value.trim().toLowerCase();
     const typeVal = usageTypeFilter.value;
 
@@ -674,12 +674,39 @@
     if (configApiBtn) configApiBtn.style.display = 'inline-flex';
     if (adminModeBtn) adminModeBtn.style.display = 'inline-flex';
 
-    renderAdminSummary();
-    renderAdminTable();
+    // 1. 브라우저 세션 캐시 확인 -> 캐시가 있으면 즉시 0초 만에 화면 렌더링!
+    const cachedAdminStr = sessionStorage.getItem('snw_admin_cache');
+    let hasLoadedFromCache = false;
 
-    // If running on remote mode without local data, fetch roster from GAS
+    if (cachedAdminStr && (!snwData || !snwData.employees || snwData.employees.length === 0)) {
+      try {
+        const cachedData = JSON.parse(cachedAdminStr);
+        if (cachedData && cachedData.employees && cachedData.employees.length > 0) {
+          snwData = {
+            company: cachedData.company || '(주)에스앤더블류',
+            total_employees: cachedData.employees.length,
+            summary: calculateAdminSummary(cachedData.employees),
+            employees: cachedData.employees
+          };
+          populateAdminDeptOptions();
+          renderAdminSummary();
+          renderAdminTable();
+          hasLoadedFromCache = true;
+        }
+      } catch (e) {
+        console.warn('Failed to parse admin session cache:', e);
+      }
+    } else {
+      renderAdminSummary();
+      renderAdminTable();
+    }
+
+    // 2. 캐시가 없거나 최초 진입인 경우 고속 로드 실행
     if ((!snwData || !snwData.employees || snwData.employees.length === 0) && gasApiUrl) {
-      loadAdminDataFromGas();
+      loadAdminDataFromGas(false);
+    } else if (gasApiUrl && hasLoadedFromCache) {
+      // 캐시로 먼저 보여준 뒤, 백그라운드에서 최신 데이터 조용히 확인
+      loadAdminDataFromGas(false, true);
     }
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -700,26 +727,36 @@
     }
   }
 
-  async function loadAdminDataFromGas() {
+  async function loadAdminDataFromGas(forceRefresh, isBackground) {
     const tbody = document.getElementById('adminTableBody');
-    if (tbody) {
+    const refreshBtn = document.getElementById('btnAdminRefresh');
+    const refreshIcon = refreshBtn ? refreshBtn.querySelector('.spin-target') : null;
+    if (refreshIcon) refreshIcon.classList.add('spin');
+
+    // 화면에 데이터가 전혀 없을 때만 로딩 안내 표시
+    if (!isBackground && (!snwData || !snwData.employees || snwData.employees.length === 0) && tbody) {
       tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding: 40px; color: var(--primary);">
-        <div style="font-size: 1.5rem; margin-bottom: 8px;">⏳</div>
-        <div><strong>구글 시트에서 전체 사원 연차 데이터를 안전하게 불러오는 중입니다...</strong></div>
-        <small style="color: var(--text-secondary);">사원 수가 많을 경우 수 초 정도 소요될 수 있습니다.</small>
+        <div style="font-size: 1.5rem; margin-bottom: 8px;">⚡</div>
+        <div><strong>구글 시트에서 전체 사원 연차 데이터를 고속 동기화 중입니다...</strong></div>
+        <small style="color: var(--text-secondary);">해시맵 인덱싱 알고리즘으로 빠르게 집계합니다.</small>
       </td></tr>`;
     }
 
     try {
-      // Try key=2524 first, fallback to snw2026!
-      let resp = await fetch(`${gasApiUrl}?action=admin&key=2524`, { method: 'GET', redirect: 'follow' });
+      const nocacheParam = forceRefresh ? '&nocache=1' : '';
+      let resp = await fetch(`${gasApiUrl}?action=admin&key=2524${nocacheParam}`, { method: 'GET', redirect: 'follow' });
       let data = await resp.json();
       if (!data.success && data.message && data.message.includes('암호')) {
-        resp = await fetch(`${gasApiUrl}?action=admin&key=snw2026!`, { method: 'GET', redirect: 'follow' });
+        resp = await fetch(`${gasApiUrl}?action=admin&key=snw2026!${nocacheParam}`, { method: 'GET', redirect: 'follow' });
         data = await resp.json();
       }
 
       if (data.success && data.employees) {
+        // 브라우저 세션 캐시에 보관하여 다음 조회 시 0초 즉시 렌더링
+        try {
+          sessionStorage.setItem('snw_admin_cache', JSON.stringify(data));
+        } catch (e) {}
+
         snwData = {
           company: data.company || '(주)에스앤더블류',
           total_employees: data.employees.length,
@@ -729,8 +766,12 @@
         populateAdminDeptOptions();
         renderAdminSummary();
         renderAdminTable();
+
+        if (forceRefresh) {
+          alert('구글 시트 최신 데이터로 동기화가 완료되었습니다!');
+        }
       } else {
-        if (tbody) {
+        if (!isBackground && tbody && (!snwData || !snwData.employees || snwData.employees.length === 0)) {
           tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding: 30px; color: var(--text-secondary);">
             전체 사원 명단은 사원명부 엑셀 파일을 업로드하시거나 구글 시트 연동을 통해 확인할 수 있습니다.
           </td></tr>`;
@@ -738,10 +779,14 @@
       }
     } catch (err) {
       console.warn('GAS admin load warning:', err);
-      if (tbody) {
+      if (!isBackground && tbody && (!snwData || !snwData.employees || snwData.employees.length === 0)) {
         tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding: 30px; color: var(--text-secondary);">
           상단 [📁 사원명부 파일 선택]을 통해 엑셀을 업로드하시면 전체 명단이 즉시 산정되어 표시됩니다.
         </td></tr>`;
+      }
+    } finally {
+      if (refreshIcon) {
+        setTimeout(() => refreshIcon.classList.remove('spin'), 500);
       }
     }
   }
@@ -1018,6 +1063,13 @@
       if (!file) return;
       alert(`[연차사용내역 업로드]\n선택하신 파일(${file.name})을 반영하려면 파일을 덮어쓰고 새로고침하시면 연동됩니다.`);
     });
+
+    const btnAdminRefresh = document.getElementById('btnAdminRefresh');
+    if (btnAdminRefresh) {
+      btnAdminRefresh.addEventListener('click', () => {
+        loadAdminDataFromGas(true);
+      });
+    }
   }
 
   // Kickoff
