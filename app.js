@@ -102,10 +102,17 @@
   const adminSearchInput = document.getElementById('adminSearchInput');
   const adminDeptFilter = document.getElementById('adminDeptFilter');
   const adminSortFilter = document.getElementById('adminSortFilter');
+  const adminTenureFilter = document.getElementById('adminTenureFilter');
   const adminTableBody = document.getElementById('adminTableBody');
+  const under1NoticeCard = document.getElementById('under1NoticeCard');
+  const countTenureAll = document.getElementById('countTenureAll');
+  const countTenureUnder1 = document.getElementById('countTenureUnder1');
+  const countTenureOver1 = document.getElementById('countTenureOver1');
   const btnExportAllExcel = document.getElementById('btnExportAllExcel');
   const uploadRosterInput = document.getElementById('uploadRosterInput');
   const uploadUsageInput = document.getElementById('uploadUsageInput');
+
+  let currentTenureFilter = 'all'; // 'all' | 'under1' | 'over1'
 
   // 1. Initialization
   async function init() {
@@ -113,6 +120,7 @@
     setupEventListeners();
     initApiConfig();
     initLoginTabs();
+    initTenureFilters();
 
     if (sessionStorage.getItem('snw_is_admin') === 'true') {
       openAdminView();
@@ -750,6 +758,56 @@
       sortedDepts.map(d => `<option value="${d}">${d}</option>`).join('');
   }
 
+  // Tenure Quick Filter Handlers
+  function initTenureFilters() {
+    const tenureTabs = document.querySelectorAll('.admin-tenure-tab');
+    tenureTabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const val = tab.getAttribute('data-tenure');
+        setTenureFilter(val);
+      });
+    });
+
+    if (adminTenureFilter) {
+      adminTenureFilter.addEventListener('change', (e) => {
+        setTenureFilter(e.target.value);
+      });
+    }
+
+    // Clicking on the First Stat Card (총 재직 사원) toggles 1-year under!
+    const statCardEmp = document.querySelector('.admin-stat-card:nth-child(1)');
+    if (statCardEmp) {
+      statCardEmp.style.cursor = 'pointer';
+      statCardEmp.setAttribute('title', '클릭하여 1년 미만 입사자만 모아보기');
+      statCardEmp.addEventListener('click', () => {
+        setTenureFilter(currentTenureFilter === 'under1' ? 'all' : 'under1');
+      });
+    }
+  }
+
+  function setTenureFilter(val) {
+    currentTenureFilter = val;
+    const tenureTabs = document.querySelectorAll('.admin-tenure-tab');
+    tenureTabs.forEach(t => {
+      if (t.getAttribute('data-tenure') === val) {
+        t.classList.add('active');
+      } else {
+        t.classList.remove('active');
+      }
+    });
+
+    if (adminTenureFilter) {
+      adminTenureFilter.value = val;
+    }
+
+    if (under1NoticeCard) {
+      under1NoticeCard.style.display = val === 'under1' ? 'flex' : 'none';
+    }
+
+    renderAdminSummary();
+    renderAdminTable();
+  }
+
   function renderAdminSummary() {
     if (!snwData) return;
     const s = snwData.summary;
@@ -758,17 +816,46 @@
     const underCount = emps.filter(e => e.leave_calc.is_under_1_year).length;
     const regularCount = emps.length - underCount;
 
-    adminTotalEmp.textContent = `${emps.length}명`;
-    document.querySelector('.admin-stat-card:nth-child(1) .stat-sub').textContent = `1년 이상: ${regularCount}명 / 1년 미만: ${underCount}명`;
+    // Update Tab Counters
+    if (countTenureAll) countTenureAll.textContent = `${emps.length}명`;
+    if (countTenureUnder1) countTenureUnder1.textContent = `${underCount}명`;
+    if (countTenureOver1) countTenureOver1.textContent = `${regularCount}명`;
 
-    adminTotalGranted.textContent = `${s.total_granted.toFixed(1)}일`;
-    document.querySelector('.admin-stat-card:nth-child(2) .stat-sub').textContent = `인당 평균 ${(s.total_granted / (emps.length || 1)).toFixed(1)}일`;
+    // Dynamic stat card display based on filter
+    if (currentTenureFilter === 'under1') {
+      const underEmps = emps.filter(e => e.leave_calc.is_under_1_year);
+      let g = 0, u = 0, r = 0;
+      underEmps.forEach(e => {
+        g += (e.leave_calc.total_granted || 0);
+        u += (e.leave_calc.used_days || 0);
+        r += (e.leave_calc.remaining_days || 0);
+      });
+      const rate = g > 0 ? ((u / g) * 100).toFixed(1) : 0;
 
-    adminTotalUsed.textContent = `${s.total_used.toFixed(1)}일`;
-    document.querySelector('.admin-stat-card:nth-child(3) .stat-sub').textContent = `평균 사용률 ${s.avg_usage_rate}%`;
+      adminTotalEmp.innerHTML = `${underCount}명 <small style="font-size:0.85rem; color:#d97706; font-weight:700;">(1년미만)</small>`;
+      document.querySelector('.admin-stat-card:nth-child(1) .stat-sub').textContent = `입사 1년 미만 월차 대상 사원`;
 
-    adminTotalRemaining.textContent = `${s.total_remaining.toFixed(1)}일`;
-    document.querySelector('.admin-stat-card:nth-child(4) .stat-sub').textContent = `미사용 잔여율 ${(100 - s.avg_usage_rate).toFixed(1)}%`;
+      adminTotalGranted.textContent = `${g.toFixed(1)}일`;
+      document.querySelector('.admin-stat-card:nth-child(2) .stat-sub').textContent = `인당 평균 ${(g / (underCount || 1)).toFixed(1)}일 (월 단위 발생)`;
+
+      adminTotalUsed.textContent = `${u.toFixed(1)}일`;
+      document.querySelector('.admin-stat-card:nth-child(3) .stat-sub').textContent = `1년 미만 평균 사용률 ${rate}%`;
+
+      adminTotalRemaining.textContent = `${r.toFixed(1)}일`;
+      document.querySelector('.admin-stat-card:nth-child(4) .stat-sub').textContent = `입사 1년 시점 소멸 예정 잔여`;
+    } else {
+      adminTotalEmp.textContent = `${emps.length}명`;
+      document.querySelector('.admin-stat-card:nth-child(1) .stat-sub').textContent = `1년 이상: ${regularCount}명 / 1년 미만: ${underCount}명`;
+
+      adminTotalGranted.textContent = `${s.total_granted.toFixed(1)}일`;
+      document.querySelector('.admin-stat-card:nth-child(2) .stat-sub').textContent = `인당 평균 ${(s.total_granted / (emps.length || 1)).toFixed(1)}일`;
+
+      adminTotalUsed.textContent = `${s.total_used.toFixed(1)}일`;
+      document.querySelector('.admin-stat-card:nth-child(3) .stat-sub').textContent = `평균 사용률 ${s.avg_usage_rate}%`;
+
+      adminTotalRemaining.textContent = `${s.total_remaining.toFixed(1)}일`;
+      document.querySelector('.admin-stat-card:nth-child(4) .stat-sub').textContent = `미사용 잔여율 ${(100 - s.avg_usage_rate).toFixed(1)}%`;
+    }
   }
 
   adminSearchInput.addEventListener('input', renderAdminTable);
@@ -786,7 +873,14 @@
 
     // Filter
     list = list.filter(emp => {
+      // Tenure filter
+      if (currentTenureFilter === 'under1' && !emp.leave_calc.is_under_1_year) return false;
+      if (currentTenureFilter === 'over1' && emp.leave_calc.is_under_1_year) return false;
+
+      // Dept filter
       if (dept !== 'all' && emp.dept !== dept) return false;
+
+      // Search query
       if (query) {
         const text = `${emp.name} ${emp.emp_id} ${emp.dept} ${emp.position} ${emp.rank}`.toLowerCase();
         if (!text.includes(query)) return false;
@@ -811,17 +905,30 @@
       const calc = emp.leave_calc;
       const periodShort = `${calc.period_start.slice(2)}~${calc.period_end.slice(2)}`;
       const remColor = calc.remaining_days <= 3 ? 'text-danger' : (calc.remaining_days >= 15 ? 'text-success' : '');
+      const isUnder = calc.is_under_1_year;
+
+      const tenureHtml = isUnder
+        ? `<strong class="text-primary">${emp.service_months}개월차</strong> <small class="text-muted">(${emp.service_days}일)</small>`
+        : `${emp.service_years}년 ${emp.service_months}개월`;
+
+      const nameHtml = isUnder
+        ? `<strong>${emp.name}</strong> <span class="badge badge-warning" style="font-size:0.7rem; padding: 2px 5px; vertical-align: middle;">1년미만</span>`
+        : `<strong>${emp.name}</strong>`;
+
+      const grantedHtml = isUnder
+        ? `<strong>${calc.total_granted.toFixed(1)}</strong> <small class="text-muted">월차</small>`
+        : `<strong>${calc.total_granted.toFixed(1)}</strong>`;
 
       return `
-        <tr>
+        <tr class="${isUnder ? 'row-under1' : ''}">
           <td>${emp.emp_id}</td>
-          <td><strong>${emp.name}</strong></td>
+          <td>${nameHtml}</td>
           <td>${emp.dept}</td>
           <td>${emp.position || emp.rank || '-'}</td>
           <td>${emp.join_date}</td>
-          <td>${emp.service_years}년 ${emp.service_months}개월</td>
+          <td>${tenureHtml}</td>
           <td><small class="text-muted">${periodShort}</small></td>
-          <td><strong>${calc.total_granted.toFixed(1)}</strong></td>
+          <td>${grantedHtml}</td>
           <td class="text-danger">${calc.used_days.toFixed(1)}</td>
           <td class="${remColor}"><strong>${calc.remaining_days.toFixed(1)}</strong></td>
           <td>${calc.usage_rate}%</td>

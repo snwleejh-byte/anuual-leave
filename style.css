@@ -1063,6 +1063,95 @@ body.theme-dark .icon-moon { display: none; }
   display: none;
 }
 
+/* Admin Tenure Tabs */
+.admin-tenure-tabs {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.admin-tenure-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.admin-tenure-tab:hover {
+  background: var(--bg-hover);
+  color: var(--text-main);
+  border-color: var(--primary);
+}
+
+.admin-tenure-tab.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-tenure-tab .tab-count {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.admin-tenure-tab:not(.active) .tab-count {
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.admin-tenure-tab.highlight-tab.active {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  border-color: #d97706;
+}
+
+.admin-tenure-tab.highlight-tab:not(.active) {
+  border-color: rgba(245, 158, 11, 0.4);
+  color: #d97706;
+}
+
+/* Under 1 Year Notice Card */
+.under1-notice-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+}
+
+.under1-notice-card .notice-icon {
+  font-size: 1.8rem;
+}
+
+.under1-notice-card h4 {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #d97706;
+  margin-bottom: 6px;
+}
+
+.under1-notice-card p {
+  font-size: 0.88rem;
+  color: var(--text-main);
+  line-height: 1.6;
+  margin: 0;
+}
+
 .admin-table th {
   cursor: pointer;
 }

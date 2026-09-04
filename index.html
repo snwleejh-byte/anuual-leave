@@ -395,6 +395,34 @@
         </div>
       </div>
 
+      <!-- Admin Tenure Quick Tabs (전체 / 1년 미만 입사자 / 1년 이상자) -->
+      <div class="admin-tenure-tabs">
+        <button type="button" class="admin-tenure-tab active" data-tenure="all" id="tabTenureAll">
+          <span>👥 전체 사원</span>
+          <span class="tab-count" id="countTenureAll">0</span>
+        </button>
+        <button type="button" class="admin-tenure-tab highlight-tab" data-tenure="under1" id="tabTenureUnder1">
+          <span>👶 1년 미만 입사자 (월차 대상)</span>
+          <span class="tab-count" id="countTenureUnder1">0</span>
+        </button>
+        <button type="button" class="admin-tenure-tab" data-tenure="over1" id="tabTenureOver1">
+          <span>💼 1년 이상 정규 연차</span>
+          <span class="tab-count" id="countTenureOver1">0</span>
+        </button>
+      </div>
+
+      <!-- Under 1 Year Law Notice Banner (1년 미만 탭 선택 시 노출) -->
+      <div class="under1-notice-card" id="under1NoticeCard" style="display: none;">
+        <div class="notice-icon">⚖️</div>
+        <div class="notice-content">
+          <h4>근로기준법 제60조 제2항 (1년 미만 입사자의 월차 휴가 안내)</h4>
+          <p>
+            1년 미만 신규 입사자는 입사일 기준 <strong>1개월 개근 시 1일씩 발생(최대 11일)</strong>하며, <strong>입사일로부터 1년이 되는 날 모두 소멸</strong>됩니다.<br>
+            <span class="text-warning">※ <strong>결근 관리</strong>: 한 달 산정 기간 중 결근(무단결근·무급결근)이 1회라도 발생한 달은 해당 월의 월차(1일)가 발생하지 않습니다.</span>
+          </p>
+        </div>
+      </div>
+
       <!-- Filter and Search Bar -->
       <div class="admin-filter-bar">
         <div class="search-input-wrap">
@@ -402,6 +430,11 @@
           <input type="text" id="adminSearchInput" placeholder="이름, 사번, 부서, 직급 검색...">
         </div>
         <div class="filter-options">
+          <select id="adminTenureFilter">
+            <option value="all">모든 근속 구분 (전체)</option>
+            <option value="under1">👶 1년 미만 입사자만 보기</option>
+            <option value="over1">💼 1년 이상 일반 직원만 보기</option>
+          </select>
           <select id="adminDeptFilter">
             <option value="all">모든 부서 (전체)</option>
           </select>
