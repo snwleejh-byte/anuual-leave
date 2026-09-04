@@ -14,3 +14,7 @@ __pycache__/
 data.json
 data.js
 
+# 내부 관리 스크립트
+google_apps_script.js
+build_data.py
+start_server.bat
