@@ -947,19 +947,19 @@ body.theme-dark .icon-moon { display: none; }
 }
 
 /* 3. ADMIN MANAGEMENT VIEW */
-/* Admin View Mode - 너무 넓지 않으면서 스크롤 없이 딱 한눈에 들어오는 황금 비율 (1,380px) */
+/* Admin View Mode - 기본 규격과 거의 같으면서 스크롤만 쏙 사라지는 컴팩트 너비 (1,260px) */
 body.admin-view-active .header-inner,
 body.admin-view-active .main-container {
-  max-width: 1380px !important;
+  max-width: 1260px !important;
   width: 100% !important;
   transition: max-width 0.25s ease;
 }
 
 .admin-container {
-  padding: 24px 28px;
+  padding: 20px 20px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 18px;
   animation: fadeIn 0.4s ease-out;
   width: 100%;
 }
@@ -1169,8 +1169,8 @@ body.admin-view-active .main-container {
 
 .admin-table th,
 .admin-table td {
-  padding: 10px 8px;
-  font-size: 0.85rem;
+  padding: 9px 5px;
+  font-size: 0.83rem;
   text-align: center;
   white-space: nowrap;
 }
@@ -1186,6 +1186,7 @@ body.admin-view-active .main-container {
 .admin-table td:nth-child(2) {
   text-align: left; /* 성명 */
   font-weight: 600;
+  padding-left: 8px;
 }
 
 .admin-table th:nth-child(3),
@@ -1197,16 +1198,16 @@ body.admin-view-active .main-container {
 .admin-table th:last-child,
 .admin-table td:last-child {
   text-align: center;
-  padding: 6px 10px;
+  padding: 5px 6px;
 }
 
 .admin-table .btn-view-emp {
   background: var(--primary);
   color: #ffffff;
   border: none;
-  padding: 5px 12px;
-  border-radius: 6px;
-  font-size: 0.82rem;
+  padding: 4px 10px;
+  border-radius: 5px;
+  font-size: 0.8rem;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
