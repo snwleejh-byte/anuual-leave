@@ -947,12 +947,12 @@ body.theme-dark .icon-moon { display: none; }
 }
 
 /* 3. ADMIN MANAGEMENT VIEW */
-/* Admin Widescreen Mode - 가로 스크롤 없이 한눈에 조회 버튼까지 쾌적하게 표시 */
+/* Admin View Mode - 너무 넓지 않으면서 스크롤 없이 딱 한눈에 들어오는 황금 비율 (1,380px) */
 body.admin-view-active .header-inner,
 body.admin-view-active .main-container {
-  max-width: 96% !important;
-  width: 96% !important;
-  transition: max-width 0.25s ease, width 0.25s ease;
+  max-width: 1380px !important;
+  width: 100% !important;
+  transition: max-width 0.25s ease;
 }
 
 .admin-container {
