@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>에스앤더블류(SNW) 임직원 연차 조회 시스템</title>
+  <meta name="description" content="(주)에스앤더블류 근로기준법 제60조 및 취업규정 기준 임직원 연차 발생 및 사용 내역 실시간 조회 시스템">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <!-- SheetJS for client-side Excel export and upload handling -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body class="theme-light">
+  <!-- Background Glows -->
+  <div class="bg-glow bg-glow-1"></div>
+  <div class="bg-glow bg-glow-2"></div>
+
+  <!-- Main Navigation Header -->
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand-group">
+        <div class="logo-badge">SNW</div>
+        <div class="brand-text">
+          <h1>(주)에스앤더블류</h1>
+          <span class="sub-text">임직원 연차 조회 시스템</span>
+        </div>
+      </div>
+      <div class="header-controls">
+        <div class="system-date" id="systemDateDisplay">
+          <span class="icon">📅</span> 기준일자: <strong>2026.09.03</strong>
+        </div>
+        <button type="button" class="btn-pill" id="refreshBtn" title="데이터 새로고침">
+          <span class="icon spin-target">🔄</span> 새로고침
+        </button>
+        <button type="button" class="btn-pill" id="configApiBtn" title="구글 시트 실시간 연동 설정">
+          <span class="icon">🔗</span> 구글 시트 연동
+        </button>
+        <button type="button" class="btn-icon theme-toggle" id="themeToggleBtn" title="화면 모드 전환" aria-label="화면 모드 전환">
+          <span class="icon-sun">☀️</span>
+          <span class="icon-moon">🌙</span>
+        </button>
+        <button type="button" class="btn-pill btn-admin-nav" id="adminModeBtn">
+          <span class="icon">⚙️</span> 관리자 현황
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-container">
+
+    <!-- 1. LOGIN SECTION -->
+    <section class="section-card login-card" id="loginSection">
+      <div class="login-header">
+        <div class="icon-circle">🔐</div>
+        <h2>본인 확인 및 연차 조회</h2>
+        <p class="desc">사번을 몰라도 <strong>이름</strong>과 <strong>생년월일</strong>로 간편하게 조회할 수 있습니다.</p>
+      </div>
+
+      <form id="loginForm" class="login-form" autocomplete="off">
+        <div class="form-group">
+          <label for="inputName">성명 (이름)</label>
+          <div class="input-wrapper">
+            <span class="input-icon">👤</span>
+            <input type="text" id="inputName" placeholder="예: 홍길동" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="inputBirth">생년월일 (6자리 또는 8자리)</label>
+          <div class="input-wrapper">
+            <span class="input-icon">🎂</span>
+            <input type="text" id="inputBirth" placeholder="예: 921108 또는 19921108" maxlength="10" required>
+          </div>
+          <span class="input-hint">주민등록번호 앞 6자리(YYMMDD)를 입력해주세요.</span>
+        </div>
+
+        <div class="login-alert" id="loginError" style="display: none;"></div>
+
+        <button type="submit" class="btn-primary btn-block btn-lg" id="submitLoginBtn">
+          <span class="btn-text">연차 조회하기</span>
+          <span class="arrow-icon">→</span>
+        </button>
+      </form>
+
+      <!-- Quick Demo Selector for fast evaluation -->
+      <div class="quick-demo-box">
+        <div class="demo-title">
+          <span class="tag">빠른 테스트 선택</span> 사원명을 선택하면 자동 입력됩니다
+        </div>
+        <div class="demo-chips" id="demoChipsContainer">
+          <!-- Populated by app.js -->
+        </div>
+      </div>
+
+      <div class="legal-badge">
+        <span>⚖️ 근로기준법 제60조 & 취업규정(SNW-005) 입사일 기준 연차 산정</span>
+      </div>
+    </section>
+
+    <!-- 2. EMPLOYEE DASHBOARD SECTION -->
+    <section class="dashboard-container" id="dashboardSection" style="display: none;">
+      
+      <!-- Employee Profile Header -->
+      <div class="profile-card">
+        <div class="profile-left">
+          <div class="avatar-badge" id="empAvatar">정</div>
+          <div class="profile-details">
+            <div class="name-row">
+              <h2 id="empName">정우진</h2>
+              <span class="badge badge-primary" id="empPosition">대표이사</span>
+              <span class="badge badge-outline" id="empDept">임원</span>
+              <span class="badge badge-secondary" id="empShift">사무직</span>
+            </div>
+            <div class="meta-row">
+              <span>사번: <strong id="empId">20121102</strong></span>
+              <span class="divider">|</span>
+              <span>입사일: <strong id="empJoinDate">2012/11/12</strong></span>
+              <span class="divider">|</span>
+              <span>근속기간: <strong id="empServiceText" class="text-accent">13년 9개월</strong></span>
+            </div>
+          </div>
+        </div>
+        <div class="profile-right">
+          <button type="button" class="btn-outline btn-sm" id="dashRefreshBtn" title="내 연차 새로고침">
+            <span class="spin-target">🔄</span> 최신 연차 새로고침
+          </button>
+          <button type="button" class="btn-secondary btn-sm" id="logoutBtn">
+            <span>🚪</span> 로그아웃
+          </button>
+        </div>
+      </div>
+
+      <!-- Key Leave KPI Metrics -->
+      <div class="kpi-grid">
+        <!-- 1. Leave Period -->
+        <div class="kpi-card card-period">
+          <div class="kpi-header">
+            <span class="kpi-title">현재 연차 적용 주기</span>
+            <span class="kpi-icon">📅</span>
+          </div>
+          <div class="kpi-body">
+            <div class="period-text" id="kpiPeriod">2025/11/12 ~ 2026/11/11</div>
+            <div class="kpi-sub">
+              <span class="status-pill status-active" id="kpiDDay">D-69일 남음</span>
+              <span class="text-muted" id="kpiNextRenewal">다음 갱신: 2026/11/12</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Total Granted -->
+        <div class="kpi-card card-granted">
+          <div class="kpi-header">
+            <span class="kpi-title">총 발생 연차</span>
+            <span class="kpi-icon">🎁</span>
+          </div>
+          <div class="kpi-body">
+            <div class="value-row">
+              <span class="kpi-number text-primary" id="kpiGranted">21.0</span>
+              <span class="kpi-unit">일</span>
+            </div>
+            <div class="kpi-sub">
+              <span class="badge badge-soft" id="kpiRuleDesc">근속 13년차 (기본15일+가산6일)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Used Days -->
+        <div class="kpi-card card-used">
+          <div class="kpi-header">
+            <span class="kpi-title">사용한 연차</span>
+            <span class="kpi-icon">⌛</span>
+          </div>
+          <div class="kpi-body">
+            <div class="value-row">
+              <span class="kpi-number text-danger" id="kpiUsed">4.5</span>
+              <span class="kpi-unit">일</span>
+            </div>
+            <div class="kpi-sub">
+              <span class="text-muted" id="kpiUsedDetail">종일 4회 · 반차 1회 사용</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Remaining Days (Highlighted) -->
+        <div class="kpi-card card-remaining highlighted">
+          <div class="kpi-header">
+            <span class="kpi-title">남은 연차 (잔여)</span>
+            <span class="kpi-icon">✨</span>
+          </div>
+          <div class="kpi-body">
+            <div class="value-row">
+              <span class="kpi-number text-success" id="kpiRemaining">16.5</span>
+              <span class="kpi-unit">일</span>
+            </div>
+            <div class="progress-wrap">
+              <div class="progress-bar">
+                <div class="progress-fill" id="kpiProgressFill" style="width: 78.5%;"></div>
+              </div>
+              <div class="progress-labels">
+                <span id="kpiUsageRate">사용률 21.4%</span>
+                <span id="kpiRemainingRate">잔여율 78.6%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Legal & Rule Explanatory Banner -->
+      <div class="info-banner" id="underOneYearBanner" style="display: none;">
+        <div class="banner-icon">💡</div>
+        <div class="banner-content">
+          <h4>입사 1년 미만 근로자 안내</h4>
+          <p>근로기준법 제60조 제2항에 따라 1개월 개근 시 1일의 유급휴가가 발생하며, 입사일로부터 1년이 되는 날까지 사용하실 수 있습니다. (1년 경과 시 15일의 새 연차가 일괄 부여됩니다.)</p>
+        </div>
+      </div>
+
+      <!-- Leave Usage History Section -->
+      <div class="section-card usage-history-card">
+        <div class="section-header">
+          <div class="section-title-group">
+            <h3>📋 상세 연차 사용 내역</h3>
+            <span class="count-badge" id="usageCountBadge">총 5건</span>
+          </div>
+          <div class="section-actions">
+            <!-- Tabs -->
+            <div class="tab-group">
+              <button type="button" class="tab-btn active" id="tabCurrentPeriod" data-mode="current">현재 연차 주기</button>
+              <button type="button" class="tab-btn" id="tabAllPeriod" data-mode="all">전체 이력</button>
+            </div>
+            <button type="button" class="btn-outline btn-sm" id="btnExportMyUsage">
+              <span>📥</span> 엑셀 저장
+            </button>
+            <button type="button" class="btn-outline btn-sm" id="btnPrintMyUsage">
+              <span>🖨️</span> 인쇄
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter and Search Bar -->
+        <div class="filter-bar">
+          <div class="search-input-wrap">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="usageSearchInput" placeholder="근무일, 요일, 비고 등 검색...">
+          </div>
+          <div class="filter-options">
+            <select id="usageTypeFilter">
+              <option value="all">모든 근태 구분 (전체)</option>
+              <option value="년차">년차 (1.0일)</option>
+              <option value="반차">반차 (0.5일)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Usage Table -->
+        <div class="table-responsive">
+          <table class="data-table" id="usageTable">
+            <thead>
+              <tr>
+                <th>순번</th>
+                <th>근무일자</th>
+                <th>요일</th>
+                <th>근태 구분</th>
+                <th>차감 일수</th>
+                <th>근무 시간</th>
+                <th>비고</th>
+              </tr>
+            </thead>
+            <tbody id="usageTableBody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+          <div class="empty-state" id="usageEmptyState" style="display: none;">
+            <span class="empty-icon">🏖️</span>
+            <p>해당 기간 동안 사용한 연차 내역이 없습니다.</p>
+          </div>
+        </div>
+
+        <!-- Footnote -->
+        <div class="table-footer-note">
+          <span>* 본 연차 내역은 근태 관리 시스템 및 연차사용내역(2025.08.01~2026.08.31) 데이터를 기반으로 산정되었습니다.</span>
+          <span>* 2026년 9월 이후 사용분이나 정정 문의는 인사담당자에게 문의 바랍니다.</span>
+        </div>
+      </div>
+
+    </section>
+
+
+    <!-- 3. ADMIN MANAGEMENT VIEW -->
+    <section class="section-card admin-container" id="adminSection" style="display: none;">
+      <div class="admin-header">
+        <div class="admin-title-group">
+          <div class="icon-circle">🏢</div>
+          <div>
+            <h2>(주)에스앤더블류 전 사원 연차 관리 현황</h2>
+            <p class="desc">전체 142명 재직자의 입사일 기준 연차 발생 및 사용, 잔여 현황을 통합 모니터링합니다.</p>
+          </div>
+        </div>
+        <div class="admin-actions">
+          <button type="button" class="btn-primary btn-sm" id="btnExportAllExcel">
+            <span>📊</span> 전 직원 현황 엑셀 다운로드
+          </button>
+          <button type="button" class="btn-secondary btn-sm" id="btnCloseAdminBtn">
+            <span>✖</span> 닫기 (개인 조회로 복귀)
+          </button>
+        </div>
+      </div>
+
+      <!-- Admin Summary Statistics -->
+      <div class="admin-stat-grid">
+        <div class="admin-stat-card">
+          <span class="stat-label">총 재직 사원</span>
+          <span class="stat-val" id="adminTotalEmp">142명</span>
+          <span class="stat-sub">1년 이상: 117명 / 1년 미만: 25명</span>
+        </div>
+        <div class="admin-stat-card">
+          <span class="stat-label">총 부여 연차</span>
+          <span class="stat-val text-primary" id="adminTotalGranted">2,314.0일</span>
+          <span class="stat-sub">인당 평균 16.3일</span>
+        </div>
+        <div class="admin-stat-card">
+          <span class="stat-label">총 사용 연차</span>
+          <span class="stat-val text-danger" id="adminTotalUsed">473.5일</span>
+          <span class="stat-sub">평균 사용률 20.5%</span>
+        </div>
+        <div class="admin-stat-card">
+          <span class="stat-label">총 잔여 연차</span>
+          <span class="stat-val text-success" id="adminTotalRemaining">1,840.5일</span>
+          <span class="stat-sub">미사용 잔여율 79.5%</span>
+        </div>
+      </div>
+
+      <!-- Excel Re-upload & Synchronization Panel -->
+      <div class="upload-panel">
+        <div class="upload-desc">
+          <strong>📁 데이터 최신화 (엑셀 업데이트):</strong> 새로운 사원명부 또는 연차사용내역 엑셀 파일을 업로드하면 브라우저에서 즉시 재계산 및 반영됩니다.
+        </div>
+        <div class="upload-buttons">
+          <label class="btn-file-upload">
+            <span>사원명부 업로드 (.xlsx)</span>
+            <input type="file" id="uploadRosterInput" accept=".xlsx, .xls">
+          </label>
+          <label class="btn-file-upload">
+            <span>연차사용내역 업로드 (.xlsx)</span>
+            <input type="file" id="uploadUsageInput" accept=".xlsx, .xls">
+          </label>
+        </div>
+      </div>
+
+      <!-- Filter and Search Bar -->
+      <div class="admin-filter-bar">
+        <div class="search-input-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="adminSearchInput" placeholder="이름, 사번, 부서, 직급 검색...">
+        </div>
+        <div class="filter-options">
+          <select id="adminDeptFilter">
+            <option value="all">모든 부서 (전체)</option>
+          </select>
+          <select id="adminSortFilter">
+            <option value="name_asc">이름 가나다순</option>
+            <option value="rem_asc">남은 연차 적은 순 (소진 임박)</option>
+            <option value="rem_desc">남은 연차 많은 순</option>
+            <option value="rate_desc">연차 사용률 높은 순</option>
+            <option value="join_desc">최근 입사일순</option>
+            <option value="join_asc">근속연수 높은순</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- All Employees Table -->
+      <div class="table-responsive admin-table-container">
+        <table class="data-table admin-table" id="adminTable">
+          <thead>
+            <tr>
+              <th>사번</th>
+              <th>성명</th>
+              <th>부서</th>
+              <th>직위</th>
+              <th>입사일자</th>
+              <th>근속기간</th>
+              <th>연차주기</th>
+              <th>총 발생</th>
+              <th>사용 일수</th>
+              <th>남은 일수</th>
+              <th>사용률</th>
+              <th>조회</th>
+            </tr>
+          </thead>
+          <tbody id="adminTableBody">
+            <!-- Dynamically populated -->
+          </tbody>
+        </table>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Google Sheets API Configuration Modal -->
+  <div class="modal-backdrop" id="apiModal" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span>🔗</span> 구글 시트 실시간 연동 설정
+        </div>
+        <button type="button" class="btn-close" id="btnCloseApiModal">✖</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">
+          배포하신 <strong>Google Apps Script 웹 앱 URL</strong>을 입력하시면, 구글 시트의 데이터가 웹사이트에 100% 실시간으로 안전하게 연동됩니다.
+        </p>
+        <div class="form-group">
+          <label for="inputGasUrl">Google Apps Script 웹 앱 URL</label>
+          <input type="url" id="inputGasUrl" placeholder="https://script.google.com/macros/s/.../exec" class="modal-input">
+        </div>
+        <div class="api-status-box" id="apiStatusBox">
+          <span class="status-dot"></span>
+          <span id="apiStatusText">현재: 로컬 데이터 모드로 동작 중</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary btn-sm" id="btnTestApi">연결 테스트</button>
+        <button type="button" class="btn-primary btn-sm" id="btnSaveApi">저장하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="app-footer">
+    <div class="footer-inner">
+      <p>© 2026 (주)에스앤더블류 (SNW). All rights reserved.</p>
+      <p class="text-muted">근로기준법 제60조 (연차 유급휴가) 및 취업규정 준수 · 내부 임직원 전용</p>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
