@@ -417,19 +417,32 @@
   function findEmployee(name, birthClean) {
     if (!snwData || !snwData.employees) return null;
 
-    return snwData.employees.find(emp => {
+    const matched = snwData.employees.filter(emp => {
       if (emp.name !== name) return false;
       
       const bInfo = emp.birth_info;
       if (!bInfo) return false;
 
+      let isBirth = false;
       if (birthClean.length === 6) {
-        return bInfo.birth6 === birthClean;
+        isBirth = (bInfo.birth6 === birthClean);
       } else if (birthClean.length === 8) {
-        return bInfo.birth8 === birthClean;
+        isBirth = (bInfo.birth8 === birthClean);
       }
-      return false;
+      if (!isBirth) return false;
+
+      // Exclude retired employees
+      if (emp.is_retired || emp.retire_date) {
+        return false;
+      }
+      return true;
     });
+
+    if (matched.length === 0) return null;
+
+    // For re-hired employees with different IDs, pick the latest join_date!
+    matched.sort((a, b) => b.join_date.localeCompare(a.join_date));
+    return matched[0];
   }
 
   function showLoginError(msg) {
@@ -605,7 +618,6 @@
           <td>${item.day_of_week || '-'}</td>
           <td><span class="${pillClass}">${item.leave_type}</span></td>
           <td>${daysText}</td>
-          <td><span class="text-muted">${hoursText}</span></td>
           <td>${item.note || (isAbsence ? '<span class="text-danger">개근 미달로 해당 월 월차 미발생</span>' : '-')}</td>
         </tr>
       `;
@@ -626,9 +638,6 @@
       '요일': item.day_of_week,
       '근태구분': item.leave_type,
       '차감일수': item.days,
-      '시간코드': item.time_code,
-      '출근': item.start_time,
-      '퇴근': item.end_time,
       '비고': item.note
     }));
 
