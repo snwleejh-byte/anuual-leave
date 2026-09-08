@@ -10,9 +10,10 @@
   // State
   let snwData = null;
   let currentEmp = null;
-  let currentUsageMode = 'current'; // 'current' or 'all'
+  let selectedCycleIndex = 0; // 0 = current cycle, 1 = previous cycle 1, etc.
+  let currentUsageMode = 'cycle'; // 'cycle' or 'all'
   let currentAdminList = [];
-  const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbxhCqinvxHXKVXlfVIurIcN_BaMQMJAB3bxd7PTqTlNDtLsYE6XuQAvNAaIeGS1Ck4/exec';
+  const DEFAULT_GAS_URL = '';
   let gasApiUrl = localStorage.getItem('snw_gas_url') || DEFAULT_GAS_URL;
 
   // DOM Elements
@@ -69,7 +70,17 @@
   const empServiceText = document.getElementById('empServiceText');
   const logoutBtn = document.getElementById('logoutBtn');
 
+  // Cycle Arrow Navigation & Previous Cycle Banner Elements
+  const prevCycleBanner = document.getElementById('prevCycleBanner');
+  const prevCycleBannerTitle = document.getElementById('prevCycleBannerTitle');
+  const prevCycleBannerDesc = document.getElementById('prevCycleBannerDesc');
+  const btnReturnToCurrentCycle = document.getElementById('btnReturnToCurrentCycle');
+  const btnPrevCycle = document.getElementById('btnPrevCycle');
+  const btnNextCycle = document.getElementById('btnNextCycle');
+  const kpiPeriodName = document.getElementById('kpiPeriodName');
+
   // KPI Elements
+  const kpiPeriodTitle = document.getElementById('kpiPeriodTitle');
   const kpiPeriod = document.getElementById('kpiPeriod');
   const kpiDDay = document.getElementById('kpiDDay');
   const kpiNextRenewal = document.getElementById('kpiNextRenewal');
@@ -84,6 +95,7 @@
   const underOneYearBanner = document.getElementById('underOneYearBanner');
 
   // Usage Table Elements
+  const cycleTabGroup = document.getElementById('cycleTabGroup');
   const tabCurrentPeriod = document.getElementById('tabCurrentPeriod');
   const tabAllPeriod = document.getElementById('tabAllPeriod');
   const usageCountBadge = document.getElementById('usageCountBadge');
@@ -226,7 +238,7 @@
 
   // 3. Quick Demo Selector
   function renderDemoChips() {
-    if (!snwData || !snwData.employees) return;
+    if (!demoChipsContainer || !snwData || !snwData.employees) return;
     
     // Pick interesting sample employees
     const demoCandidates = ['정우진', '강동석', '고석진', '정보람', '석윤미', '임원천'];
@@ -350,7 +362,12 @@
           showLoginError(result.message || '일치하는 사원 정보를 찾을 수 없습니다.');
         }
       } catch (err) {
-        console.error('GAS login error:', err);
+        console.warn('GAS login error, attempting local lookup fallback:', err);
+        const matched = findEmployee(rawName, rawBirth);
+        if (matched) {
+          loginSuccess(matched, rawBirth);
+          return;
+        }
         showLoginError(`<strong>[연동 오류]</strong> ${err.message || err}<br><br><small style="color:var(--text-secondary);">※ 구글 시트 Apps Script에서 [배포] -> [새 배포] -> [웹 앱] -> [액세스: 모든 사용자]로 정상 배포되었는지 확인해주세요.</small>`);
       } finally {
         submitLoginBtn.disabled = false;
@@ -503,40 +520,280 @@
     empJoinDate.textContent = emp.join_date;
     empServiceText.textContent = emp.service_text;
 
-    const calc = emp.leave_calc;
+    // Initialize cycles and select current cycle (index 0)
+    selectedCycleIndex = 0;
+    currentUsageMode = 'cycle';
+    tabCurrentPeriod.classList.add('active');
+    tabAllPeriod.classList.remove('active');
+    usageSearchInput.value = '';
+    selectCycle(0);
+  }
 
-    // KPI Cards
-    kpiPeriod.textContent = `${calc.period_start} ~ ${calc.period_end}`;
-    if (calc.d_day >= 0) {
-      kpiDDay.textContent = `D-${calc.d_day}일 남음`;
-      kpiDDay.className = 'status-pill status-active';
+  // Helper: Ensure employee has leave_cycles array populated
+  function ensureEmployeeCycles(emp) {
+    if (emp.leave_cycles && emp.leave_cycles.length > 0) {
+      return emp.leave_cycles;
+    }
+    const refDateStr = (snwData && snwData.ref_date) || '2026/09/03';
+    const allUsage = emp.all_usage || (emp.current_usage || []).concat(emp.prior_usage || []);
+    emp.leave_cycles = computeClientCycles(emp.join_date, refDateStr, allUsage, emp.leave_calc);
+    return emp.leave_cycles;
+  }
+
+  function parseDateStr(s) {
+    if (!s) return null;
+    const parts = s.replace(/-/g, '/').replace(/\./g, '/').split('/');
+    return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+  }
+
+  function formatDateObj(d) {
+    if (!d) return '';
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}/${m}/${day}`;
+  }
+
+  function addYearsObj(d, years) {
+    return new Date(d.getFullYear() + years, d.getMonth(), d.getDate());
+  }
+
+  function computeClientCycles(joinDateStr, refDateStr, allUsage, leaveCalc) {
+    const joinDate = parseDateStr(joinDateStr);
+    const refDate = parseDateStr(refDateStr) || new Date();
+    const cycles = [];
+    const daysWorked = Math.floor((refDate - joinDate) / (1000 * 60 * 60 * 24));
+
+    if (daysWorked < 365) {
+      const endObj = new Date(addYearsObj(joinDate, 1).getTime() - 24 * 60 * 60 * 1000);
+      const granted = (leaveCalc && leaveCalc.total_granted !== undefined) ? leaveCalc.total_granted : 11;
+      cycles.push({
+        cycle_id: 'cycle_curr',
+        cycle_type: 'current',
+        cycle_label: '현재 연차 주기',
+        period_name: `1년차 월차 (${formatDateObj(joinDate)} ~ ${formatDateObj(endObj)})`,
+        is_current: true,
+        is_under_1_year: true,
+        completed_years: 0,
+        period_start: joinDateStr,
+        period_end: formatDateObj(endObj),
+        next_renewal_date: formatDateObj(addYearsObj(joinDate, 1)),
+        start_obj: joinDate,
+        end_obj: endObj,
+        total_granted: granted,
+        rule_description: (leaveCalc && leaveCalc.rule_description) || '입사 1년 미만 월 단위 발생 (최대 11일)'
+      });
     } else {
-      kpiDDay.textContent = `기간 경과`;
+      const candYear = refDate.getFullYear();
+      let cand = new Date(candYear, joinDate.getMonth(), joinDate.getDate());
+      let lastAnniv, nextAnniv;
+      if (cand <= refDate) {
+        lastAnniv = cand;
+        nextAnniv = addYearsObj(cand, 1);
+      } else {
+        lastAnniv = addYearsObj(cand, -1);
+        nextAnniv = cand;
+      }
+
+      let currCompYears = lastAnniv.getFullYear() - joinDate.getFullYear();
+      if (currCompYears < 1) currCompYears = 1;
+      let currGranted = 15;
+      if (currCompYears >= 3) {
+        currGranted = Math.min(25, 15 + Math.floor((currCompYears - 1) / 2));
+      }
+      const currEnd = new Date(nextAnniv.getTime() - 24 * 60 * 60 * 1000);
+
+      cycles.push({
+        cycle_id: 'cycle_curr',
+        cycle_type: 'current',
+        cycle_label: '현재 연차 주기',
+        period_name: `${currCompYears}년차 (${formatDateObj(lastAnniv)} ~ ${formatDateObj(currEnd)})`,
+        is_current: true,
+        is_under_1_year: false,
+        completed_years: currCompYears,
+        period_start: formatDateObj(lastAnniv),
+        period_end: formatDateObj(currEnd),
+        next_renewal_date: formatDateObj(nextAnniv),
+        start_obj: lastAnniv,
+        end_obj: currEnd,
+        total_granted: currGranted,
+        rule_description: `근속 ${currCompYears}년차 법정 연차 (기본 15일 + 근속가산 ${currGranted - 15}일)`
+      });
+
+      let loopAnniv = lastAnniv;
+      for (let i = 1; i <= 3; i++) {
+        const prevAnniv = addYearsObj(loopAnniv, -1);
+        const prevEnd = new Date(loopAnniv.getTime() - 24 * 60 * 60 * 1000);
+
+        if (prevAnniv < joinDate) {
+          if (loopAnniv > joinDate) {
+            const firstEnd = new Date(addYearsObj(joinDate, 1).getTime() - 24 * 60 * 60 * 1000);
+            cycles.push({
+              cycle_id: `cycle_prev_${i}`,
+              cycle_type: 'previous',
+              cycle_label: i === 1 ? '직전 연차 주기' : `${i}년 전 주기`,
+              period_name: `1년차 월차 (${formatDateObj(joinDate)} ~ ${formatDateObj(firstEnd)})`,
+              is_current: false,
+              is_under_1_year: true,
+              completed_years: 0,
+              period_start: formatDateObj(joinDate),
+              period_end: formatDateObj(firstEnd),
+              next_renewal_date: formatDateObj(loopAnniv),
+              start_obj: joinDate,
+              end_obj: firstEnd,
+              total_granted: 11,
+              rule_description: '입사 1년 미만 월 단위 발생 (최대 11일)'
+            });
+          }
+          break;
+        }
+
+        const compY = prevAnniv.getFullYear() - joinDate.getFullYear();
+        if (compY === 0) {
+          const firstEnd = new Date(addYearsObj(joinDate, 1).getTime() - 24 * 60 * 60 * 1000);
+          cycles.push({
+            cycle_id: `cycle_prev_${i}`,
+            cycle_type: 'previous',
+            cycle_label: i === 1 ? '직전 연차 주기' : `${i}년 전 주기`,
+            period_name: `1년차 월차 (${formatDateObj(joinDate)} ~ ${formatDateObj(firstEnd)})`,
+            is_current: false,
+            is_under_1_year: true,
+            completed_years: 0,
+            period_start: formatDateObj(joinDate),
+            period_end: formatDateObj(firstEnd),
+            next_renewal_date: formatDateObj(loopAnniv),
+            start_obj: joinDate,
+            end_obj: firstEnd,
+            total_granted: 11,
+            rule_description: '입사 1년 미만 월 단위 발생 (최대 11일)'
+          });
+          break;
+        } else {
+          let pGranted = 15;
+          if (compY >= 3) {
+            pGranted = Math.min(25, 15 + Math.floor((compY - 1) / 2));
+          }
+          const label = i === 1 ? '직전 연차 주기' : `${i}년 전 주기`;
+          cycles.push({
+            cycle_id: `cycle_prev_${i}`,
+            cycle_type: 'previous',
+            cycle_label: label,
+            period_name: `${compY}년차 (${formatDateObj(prevAnniv)} ~ ${formatDateObj(prevEnd)})`,
+            is_current: false,
+            is_under_1_year: false,
+            completed_years: compY,
+            period_start: formatDateObj(prevAnniv),
+            period_end: formatDateObj(prevEnd),
+            next_renewal_date: formatDateObj(loopAnniv),
+            start_obj: prevAnniv,
+            end_obj: prevEnd,
+            total_granted: pGranted,
+            rule_description: `근속 ${compY}년차 법정 연차 (기본 15일 + 근속가산 ${pGranted - 15}일)`
+          });
+          loopAnniv = prevAnniv;
+        }
+      }
+    }
+
+    // Assign usage records
+    cycles.forEach(c => {
+      const sObj = c.start_obj;
+      const eObj = c.end_obj;
+      const cUsage = [];
+      let usedDays = 0.0;
+      (allUsage || []).forEach(u => {
+        const uDate = parseDateStr(u.date);
+        if (uDate && uDate >= sObj && uDate <= eObj) {
+          cUsage.push(u);
+          usedDays += (u.days || 0.0);
+          if (!u.cycle_label) {
+            u.cycle_id = c.cycle_id;
+            u.cycle_label = c.cycle_label;
+            u.period_name = c.period_name;
+          }
+        }
+      });
+      c.usage_list = cUsage;
+      c.used_days = Math.round(usedDays * 10) / 10;
+      c.remaining_days = Math.round((c.total_granted - usedDays) * 10) / 10;
+      c.usage_rate = c.total_granted > 0 ? Math.round((usedDays / c.total_granted) * 1000) / 10 : 0;
+      delete c.start_obj;
+      delete c.end_obj;
+    });
+
+    return cycles;
+  }
+
+  // 5. Select Cycle and Update KPIs via In-Card Arrow Navigation
+  function selectCycle(index) {
+    if (!currentEmp) return;
+    const cycles = ensureEmployeeCycles(currentEmp);
+    if (!cycles || cycles.length === 0) return;
+
+    selectedCycleIndex = Math.max(0, Math.min(cycles.length - 1, index));
+    const cycle = cycles[selectedCycleIndex];
+
+    // Update Arrow Navigation States & Tooltip Titles
+    if (btnNextCycle) {
+      btnNextCycle.disabled = (selectedCycleIndex === 0);
+      const nextCycle = cycles[selectedCycleIndex - 1];
+      btnNextCycle.title = nextCycle ? `다음 주기(${nextCycle.cycle_label}) 보기` : '최신 연차 주기입니다';
+    }
+    if (btnPrevCycle) {
+      btnPrevCycle.disabled = (selectedCycleIndex >= cycles.length - 1);
+      const prevCycle = cycles[selectedCycleIndex + 1];
+      btnPrevCycle.title = prevCycle ? `이전 주기(${prevCycle.cycle_label}) 보기` : '이전 연차 주기가 없습니다';
+    }
+
+    // Update KPI Card Header & Values
+    if (kpiPeriodTitle) {
+      kpiPeriodTitle.textContent = cycle.is_current ? '현재 연차 적용 주기' : `${cycle.cycle_label}`;
+    }
+    kpiPeriod.textContent = `${cycle.period_start} ~ ${cycle.period_end}`;
+    if (kpiPeriodName) {
+      const pNameShort = cycle.period_name ? cycle.period_name.split('(')[0].trim() : `${cycle.completed_years || 1}년차`;
+      kpiPeriodName.textContent = pNameShort;
+    }
+
+    if (cycle.is_current) {
+      if (currentEmp.leave_calc && currentEmp.leave_calc.d_day >= 0) {
+        kpiDDay.textContent = `D-${currentEmp.leave_calc.d_day}일 남음`;
+        kpiDDay.className = 'status-pill status-active';
+      } else {
+        kpiDDay.textContent = `기간 경과`;
+        kpiDDay.className = 'status-pill';
+      }
+      kpiNextRenewal.textContent = `다음 연차 갱신: ${cycle.next_renewal_date}`;
+    } else {
+      kpiDDay.textContent = `사용 기한 만료`;
       kpiDDay.className = 'status-pill';
+      kpiNextRenewal.textContent = `차기 연차 이관 완료 (${cycle.next_renewal_date})`;
     }
-    kpiNextRenewal.textContent = `다음 연차 갱신: ${calc.next_renewal_date}`;
 
-    kpiGranted.textContent = calc.total_granted.toFixed(1);
-    if (calc.absence_months_deducted > 0) {
-      kpiRuleDesc.innerHTML = `${calc.rule_description}<br><span class="badge badge-danger" style="margin-top:4px; font-size:0.75rem; display:inline-block;">⚠️ 개근 미달(결근) ${calc.absence_months_deducted}개월 미발생 반영</span>`;
+    kpiGranted.textContent = cycle.total_granted.toFixed(1);
+
+    if (cycle.absence_months_deducted > 0) {
+      kpiRuleDesc.innerHTML = `${cycle.rule_description}<br><span class="badge badge-danger" style="margin-top:4px; font-size:0.75rem; display:inline-block;">⚠️ 개근 미달(결근) ${cycle.absence_months_deducted}개월 미발생 반영</span>`;
     } else {
-      kpiRuleDesc.textContent = calc.rule_description;
+      kpiRuleDesc.textContent = cycle.rule_description;
     }
 
-    kpiUsed.textContent = calc.used_days.toFixed(1);
-    
-    // Calculate full and half day counts
-    const currUsage = emp.current_usage || [];
-    const fullCount = currUsage.filter(u => u.leave_type.includes('년차')).length;
-    const halfCount = currUsage.filter(u => u.leave_type.includes('반차')).length;
-    kpiUsedDetail.textContent = `종일 ${fullCount}회 · 반차 ${halfCount}회 사용`;
+    kpiUsed.textContent = cycle.used_days.toFixed(1);
 
-    kpiRemaining.textContent = calc.remaining_days.toFixed(1);
+    const cUsage = cycle.usage_list || [];
+    const fullCount = cUsage.filter(u => u.leave_type.includes('년차')).length;
+    const halfCount = cUsage.filter(u => u.leave_type.includes('반차')).length;
+    if (cUsage.length > 0) {
+      kpiUsedDetail.textContent = `종일 ${fullCount}회 · 반차 ${halfCount}회 사용`;
+    } else {
+      kpiUsedDetail.textContent = `해당 주기 연차 사용 내역 없음`;
+    }
 
-    // Remaining progress
-    let usagePct = calc.usage_rate;
+    kpiRemaining.textContent = cycle.remaining_days.toFixed(1);
+
+    let usagePct = cycle.usage_rate;
     let remPct = (100 - usagePct).toFixed(1);
-    if (calc.total_granted === 0) {
+    if (cycle.total_granted === 0) {
       usagePct = 0;
       remPct = 0;
     }
@@ -544,58 +801,127 @@
     kpiUsageRate.textContent = `사용률 ${usagePct}%`;
     kpiRemainingRate.textContent = `잔여율 ${remPct}%`;
 
-    // 1-year under banner
-    if (calc.is_under_1_year) {
+    // 1-year under banner (only if currently selected cycle is under 1 year)
+    if (cycle.is_under_1_year && cycle.is_current) {
       underOneYearBanner.style.display = 'flex';
     } else {
       underOneYearBanner.style.display = 'none';
     }
 
-    // Render Usage Table
-    currentUsageMode = 'current';
-    tabCurrentPeriod.classList.add('active');
-    tabAllPeriod.classList.remove('active');
-    usageSearchInput.value = '';
-    usageTypeFilter.value = 'all';
+    // Previous Cycle Banner
+    if (prevCycleBanner) {
+      if (!cycle.is_current) {
+        prevCycleBanner.style.display = 'flex';
+        if (prevCycleBannerTitle) {
+          prevCycleBannerTitle.textContent = `📜 ${cycle.cycle_label} (${cycle.period_name}) 조회 중`;
+        }
+        if (prevCycleBannerDesc) {
+          prevCycleBannerDesc.innerHTML = `해당 주기의 법정 발생 <strong>${cycle.total_granted.toFixed(1)}일</strong> 중 <strong>${cycle.used_days.toFixed(1)}일</strong>이 사용되었으며, 마감 시점 잔여 연차는 <strong>${cycle.remaining_days.toFixed(1)}일</strong>입니다. (사용 기간 만료)`;
+        }
+      } else {
+        prevCycleBanner.style.display = 'none';
+      }
+    }
 
+    updateCycleTabs();
     renderUsageTable();
   }
 
-  // 6. Usage Table Tabs and Filtering
-  tabCurrentPeriod.addEventListener('click', () => {
-    currentUsageMode = 'current';
-    tabCurrentPeriod.classList.add('active');
-    tabAllPeriod.classList.remove('active');
-    renderUsageTable();
-  });
+  // Dynamic Cycle & History Tab Generation
+  function updateCycleTabs() {
+    if (!cycleTabGroup || !currentEmp) return;
+    const cycles = ensureEmployeeCycles(currentEmp);
+    const allList = currentEmp.all_usage || (currentEmp.current_usage || []).concat(currentEmp.prior_usage || []);
+    const allTotalCount = allList.length;
 
-  tabAllPeriod.addEventListener('click', () => {
-    currentUsageMode = 'all';
-    tabAllPeriod.classList.add('active');
-    tabCurrentPeriod.classList.remove('active');
-    renderUsageTable();
-  });
+    cycleTabGroup.innerHTML = '';
+
+    // Render an individual tab for each cycle
+    cycles.forEach((c, idx) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      const isCycleActive = (currentUsageMode === 'cycle' && selectedCycleIndex === idx);
+      btn.className = `tab-btn ${isCycleActive ? 'active' : ''}`;
+      
+      const count = (c.usage_list || []).length;
+      let shortLabel = c.is_current ? '현재 주기' : c.cycle_label;
+      btn.textContent = `${shortLabel} (${count}건)`;
+      btn.title = `${c.period_name || c.cycle_label} 사용 내역 보기`;
+
+      btn.addEventListener('click', () => {
+        currentUsageMode = 'cycle';
+        selectCycle(idx);
+      });
+      cycleTabGroup.appendChild(btn);
+    });
+
+    // Render "전체 이력" tab
+    const allBtn = document.createElement('button');
+    allBtn.type = 'button';
+    allBtn.className = `tab-btn ${currentUsageMode === 'all' ? 'active' : ''}`;
+    allBtn.textContent = `전체 이력 (총 ${allTotalCount}건)`;
+    allBtn.title = '모든 주기 연차 사용 내역 합산 보기';
+    allBtn.addEventListener('click', () => {
+      currentUsageMode = 'all';
+      updateCycleTabs();
+      renderUsageTable();
+    });
+    cycleTabGroup.appendChild(allBtn);
+  }
+
+  // Arrow navigation event listeners
+  if (btnPrevCycle) {
+    btnPrevCycle.addEventListener('click', () => {
+      selectCycle(selectedCycleIndex + 1);
+    });
+  }
+
+  if (btnNextCycle) {
+    btnNextCycle.addEventListener('click', () => {
+      selectCycle(selectedCycleIndex - 1);
+    });
+  }
+
+  // Return to current cycle button
+  if (btnReturnToCurrentCycle) {
+    btnReturnToCurrentCycle.addEventListener('click', () => {
+      selectCycle(0);
+    });
+  }
 
   usageSearchInput.addEventListener('input', renderUsageTable);
   usageTypeFilter.addEventListener('change', renderUsageTable);
 
   function renderUsageTable() {
     if (!currentEmp) return;
+    const cycles = ensureEmployeeCycles(currentEmp);
+    const selectedCycle = cycles[selectedCycleIndex] || cycles[0];
 
-    const sourceList = currentUsageMode === 'current' ? (currentEmp.current_usage || []) : (currentEmp.all_usage || currentEmp.current_usage || []);
+    const sourceList = (currentUsageMode === 'cycle' || currentUsageMode === 'current')
+      ? (selectedCycle ? (selectedCycle.usage_list || []) : (currentEmp.current_usage || []))
+      : (currentEmp.all_usage || currentEmp.current_usage || []);
+
     const searchVal = usageSearchInput.value.trim().toLowerCase();
     const typeVal = usageTypeFilter.value;
 
     const filtered = sourceList.filter(item => {
       if (typeVal !== 'all' && !item.leave_type.includes(typeVal)) return false;
       if (searchVal) {
-        const text = `${item.date} ${item.day_of_week} ${item.leave_type} ${item.note} ${item.time_code}`.toLowerCase();
+        const text = `${item.date} ${item.day_of_week} ${item.leave_type} ${item.note} ${item.time_code} ${item.cycle_label || ''}`.toLowerCase();
         if (!text.includes(searchVal)) return false;
       }
       return true;
     });
 
-    usageCountBadge.textContent = `총 ${filtered.length}건`;
+    const allList = currentEmp.all_usage || (currentEmp.current_usage || []).concat(currentEmp.prior_usage || []);
+    const allTotalCount = allList.length;
+    if (currentUsageMode === 'cycle' || currentUsageMode === 'current') {
+      usageCountBadge.textContent = (allTotalCount > filtered.length)
+        ? `선택 주기 ${filtered.length}건 (전체 ${allTotalCount}건)`
+        : `총 ${filtered.length}건`;
+    } else {
+      usageCountBadge.textContent = `총 ${filtered.length}건`;
+    }
 
     if (filtered.length === 0) {
       usageTableBody.innerHTML = '';
@@ -608,14 +934,18 @@
       const isAbsence = item.is_absence || item.leave_type.includes('결근');
       const isFull = item.leave_type.includes('년차');
       const pillClass = isAbsence ? 'type-pill badge-danger' : (isFull ? 'type-pill type-full' : 'type-pill type-half');
-      const hoursText = (item.start_time && item.end_time) ? `${item.start_time} ~ ${item.end_time}` : (item.time_code || '-');
       const daysText = isAbsence ? '<span class="text-danger" style="font-size:0.82rem; font-weight:700;">0.0일 (월차 미발생)</span>' : `<strong>${item.days.toFixed(1)}일</strong>`;
       
+      const cycleLabel = item.cycle_label || (selectedCycle ? selectedCycle.cycle_label : '연차 주기');
+      const isCurrCycle = (item.cycle_id === 'cycle_curr' || cycleLabel === '현재 연차 주기');
+      const cycleBadgeClass = isCurrCycle ? 'badge-cycle-current' : 'badge-cycle-prev';
+
       return `
         <tr class="${isAbsence ? 'row-absence' : ''}">
           <td>${idx + 1}</td>
           <td><strong>${item.date}</strong></td>
           <td>${item.day_of_week || '-'}</td>
+          <td><span class="badge-cycle ${cycleBadgeClass}">${cycleLabel}</span></td>
           <td><span class="${pillClass}">${item.leave_type}</span></td>
           <td>${daysText}</td>
           <td>${item.note || (isAbsence ? '<span class="text-danger">개근 미달로 해당 월 월차 미발생</span>' : '-')}</td>
@@ -627,7 +957,10 @@
   // 7. My Usage Export to Excel and Print
   btnExportMyUsage.addEventListener('click', () => {
     if (!currentEmp) return;
-    const sourceList = currentUsageMode === 'current' ? (currentEmp.current_usage || []) : (currentEmp.all_usage || []);
+    const cycles = ensureEmployeeCycles(currentEmp);
+    const selectedCycle = cycles[selectedCycleIndex] || cycles[0];
+    const isCycleMode = (currentUsageMode === 'cycle' || currentUsageMode === 'current');
+    const sourceList = isCycleMode ? (selectedCycle ? (selectedCycle.usage_list || []) : []) : (currentEmp.all_usage || []);
     
     const rows = sourceList.map((item, idx) => ({
       '순번': idx + 1,
@@ -636,6 +969,7 @@
       '부서': currentEmp.dept,
       '근무일자': item.date,
       '요일': item.day_of_week,
+      '적용주기': item.cycle_label || (selectedCycle ? selectedCycle.cycle_label : '-'),
       '근태구분': item.leave_type,
       '차감일수': item.days,
       '비고': item.note
@@ -644,7 +978,8 @@
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "연차사용내역");
-    XLSX.writeFile(wb, `${currentEmp.name}_연차사용내역_${currentEmp.leave_calc.period_start.replace(/\//g,'')}.xlsx`);
+    const cycleSuffix = isCycleMode ? (selectedCycle ? selectedCycle.cycle_label.replace(/\s+/g, '') : '선택주기') : '전체이력';
+    XLSX.writeFile(wb, `${currentEmp.name}_연차사용내역_${cycleSuffix}.xlsx`);
   });
 
   btnPrintMyUsage.addEventListener('click', () => {

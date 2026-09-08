@@ -586,6 +586,110 @@ body.theme-dark .icon-moon { display: none; }
   font-size: 0.82rem;
 }
 
+/* Cycle Selector Panel */
+/* Card Period Header & (화살표) 연차 주기 (화살표) Navigation */
+.cycle-title-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-card-alt);
+  border: 1px solid var(--border-color);
+  padding: 4px 6px;
+  border-radius: 999px;
+  transition: all var(--transition-fast);
+}
+
+.cycle-title-nav:hover {
+  border-color: var(--border-hover);
+}
+
+.cycle-title-nav .kpi-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-main);
+  white-space: nowrap;
+  padding: 0 4px;
+  user-select: none;
+}
+
+.btn-cycle-nav {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-main);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.74rem;
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all var(--transition-fast);
+  padding: 0;
+  line-height: 1;
+}
+
+.btn-cycle-nav:hover:not(:disabled) {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #ffffff;
+  transform: scale(1.1);
+  box-shadow: 0 2px 6px rgba(46, 80, 230, 0.25);
+}
+
+.btn-cycle-nav:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: var(--bg-card-alt);
+  border-color: var(--border-color);
+  color: var(--text-muted);
+  box-shadow: none;
+}
+
+.period-kpi-sub {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.period-kpi-sub .dday-line {
+  display: flex;
+  align-items: center;
+}
+
+.period-kpi-sub .renewal-line {
+  display: flex;
+  align-items: center;
+}
+
+.period-kpi-sub .renewal-line .text-muted {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  letter-spacing: -0.2px;
+}
+
+.period-text-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.period-name-badge {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--primary);
+  background: var(--primary-light);
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
 /* KPI Grid */
 .kpi-grid {
   display: grid;
@@ -732,6 +836,70 @@ body.theme-dark .icon-moon { display: none; }
   font-size: 0.85rem;
   line-height: 1.45;
   color: #0c4a6e;
+}
+
+/* Previous Cycle Informational Banner */
+.prev-cycle-banner {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(217, 119, 6, 0.06));
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #b45309;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  animation: fadeIn 0.3s ease;
+}
+
+body.theme-dark .prev-cycle-banner {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(217, 119, 6, 0.08));
+  border-color: rgba(245, 158, 11, 0.45);
+  color: #fbbf24;
+}
+
+.prev-cycle-banner .banner-content h4 {
+  color: inherit;
+}
+
+.prev-cycle-banner .banner-content p {
+  color: var(--text-secondary);
+}
+
+.btn-return-cycle {
+  border: 1px solid currentColor;
+  color: inherit;
+  white-space: nowrap;
+  font-weight: 600;
+  transition: all var(--transition-fast);
+}
+
+.btn-return-cycle:hover {
+  background: rgba(245, 158, 11, 0.15);
+  transform: translateY(-1px);
+}
+
+/* Cycle Badges in table */
+.badge-cycle {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge-cycle-current {
+  background: var(--primary-light);
+  color: var(--primary);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.badge-cycle-prev {
+  background: var(--bg-card-alt);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
 }
 
 /* Usage History Card */

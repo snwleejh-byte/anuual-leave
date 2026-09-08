@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=2.4">
   <!-- SheetJS for client-side Excel export and upload handling -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
@@ -100,16 +100,6 @@
             <span class="arrow-icon">→</span>
           </button>
         </form>
-
-        <!-- Quick Demo Selector for fast evaluation -->
-        <div class="quick-demo-box">
-          <div class="demo-title">
-            <span class="tag">빠른 테스트 선택</span> 사원명을 선택하면 자동 입력됩니다
-          </div>
-          <div class="demo-chips" id="demoChipsContainer">
-            <!-- Populated by app.js -->
-          </div>
-        </div>
       </div>
 
       <!-- Admin Login Form -->
@@ -179,19 +169,46 @@
         </div>
       </div>
 
+      <!-- Previous Cycle Informational Banner (shown when a previous cycle is selected) -->
+      <div class="info-banner prev-cycle-banner" id="prevCycleBanner" style="display: none;">
+        <div class="banner-icon">📜</div>
+        <div class="banner-content">
+          <h4 id="prevCycleBannerTitle">이전 연차 주기(과거 이력) 조회 중</h4>
+          <p id="prevCycleBannerDesc">해당 연차 주기의 법정 발생 일수, 사용 내역 및 최종 마감 잔여 일수입니다. (현재는 사용 기간이 만료되었습니다.)</p>
+        </div>
+        <button type="button" class="btn-outline btn-sm btn-return-cycle" id="btnReturnToCurrentCycle">
+          <span>↩️</span> 현재 주기로 돌아가기
+        </button>
+      </div>
+
       <!-- Key Leave KPI Metrics -->
       <div class="kpi-grid">
-        <!-- 1. Leave Period -->
-        <div class="kpi-card card-period">
+        <!-- 1. Leave Period with Direct Arrow Cycle Navigation -->
+        <div class="kpi-card card-period" id="cardPeriod">
           <div class="kpi-header">
-            <span class="kpi-title">현재 연차 적용 주기</span>
+            <div class="cycle-title-nav">
+              <button type="button" class="btn-cycle-nav" id="btnPrevCycle" title="이전 연차 주기 보기">
+                <span>◀</span>
+              </button>
+              <span class="kpi-title" id="kpiPeriodTitle">현재 연차 적용 주기</span>
+              <button type="button" class="btn-cycle-nav" id="btnNextCycle" title="다음 연차 주기 보기" disabled>
+                <span>▶</span>
+              </button>
+            </div>
             <span class="kpi-icon">📅</span>
           </div>
           <div class="kpi-body">
-            <div class="period-text" id="kpiPeriod">2025/11/12 ~ 2026/11/11</div>
-            <div class="kpi-sub">
-              <span class="status-pill status-active" id="kpiDDay">D-69일 남음</span>
-              <span class="text-muted" id="kpiNextRenewal">다음 갱신: 2026/11/12</span>
+            <div class="period-text-row">
+              <div class="period-text" id="kpiPeriod">2025/11/12 ~ 2026/11/11</div>
+              <span class="period-name-badge" id="kpiPeriodName">13년차</span>
+            </div>
+            <div class="kpi-sub period-kpi-sub">
+              <div class="dday-line">
+                <span class="status-pill status-active" id="kpiDDay">D-69일 남음</span>
+              </div>
+              <div class="renewal-line">
+                <span class="text-muted" id="kpiNextRenewal">다음 연차 갱신: 2026/11/12</span>
+              </div>
             </div>
           </div>
         </div>
@@ -271,10 +288,10 @@
             <span class="count-badge" id="usageCountBadge">총 5건</span>
           </div>
           <div class="section-actions">
-            <!-- Tabs -->
-            <div class="tab-group">
-              <button type="button" class="tab-btn active" id="tabCurrentPeriod" data-mode="current">현재 연차 주기</button>
-              <button type="button" class="tab-btn" id="tabAllPeriod" data-mode="all">전체 이력</button>
+            <!-- Dynamic Cycle & History Tabs -->
+            <div class="tab-group" id="cycleTabGroup">
+              <button type="button" class="tab-btn active" id="tabCurrentPeriod" data-mode="cycle">선택 주기 내역</button>
+              <button type="button" class="tab-btn" id="tabAllPeriod" data-mode="all">전체 이력 (모든 주기)</button>
             </div>
             <button type="button" class="btn-outline btn-sm" id="btnExportMyUsage">
               <span>📥</span> 엑셀 저장
@@ -308,6 +325,7 @@
                 <th>순번</th>
                 <th>근무일자</th>
                 <th>요일</th>
+                <th>적용 주기</th>
                 <th>근태 구분</th>
                 <th>차감 일수</th>
                 <th>비고</th>
@@ -518,7 +536,7 @@
   </footer>
 
   <!-- Scripts -->
-  <script src="data.js"></script>
-  <script src="app.js"></script>
+  <script src="data.js?v=2.4"></script>
+  <script src="app.js?v=2.4"></script>
 </body>
 </html>
