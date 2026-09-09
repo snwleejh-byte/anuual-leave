@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=2.4">
+  <link rel="stylesheet" href="style.css?v=2.6">
   <!-- SheetJS for client-side Excel export and upload handling -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
@@ -21,6 +21,9 @@
   <header class="app-header">
     <div class="header-inner">
       <div class="brand-group">
+        <button type="button" class="btn-header-back" id="btnHeaderBack" style="display: none;" title="이전 화면으로 돌아가기">
+          <span class="btn-back-icon">◀</span> <span id="btnHeaderBackText">뒤로가기</span>
+        </button>
         <div class="logo-badge">SNW</div>
         <div class="brand-text">
           <h1>(주)에스앤더블류</h1>
@@ -160,6 +163,9 @@
           </div>
         </div>
         <div class="profile-right">
+          <button type="button" class="btn-dash-back btn-sm" id="btnDashBack" style="display: none;" title="이전 화면으로 돌아가기">
+            <span id="btnDashBackIcon">◀</span> <span id="btnDashBackText">뒤로가기</span>
+          </button>
           <button type="button" class="btn-outline btn-sm" id="dashRefreshBtn" title="내 연차 새로고침">
             <span class="spin-target">🔄</span> 최신 연차 새로고침
           </button>
@@ -536,7 +542,7 @@
   </footer>
 
   <!-- Scripts -->
-  <script src="data.js?v=2.5"></script>
-  <script src="app.js?v=2.5"></script>
+  <script src="data.js?v=2.6"></script>
+  <script src="app.js?v=2.6"></script>
 </body>
 </html>

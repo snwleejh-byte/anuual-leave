@@ -17,6 +17,11 @@
   let gasApiUrl = localStorage.getItem('snw_gas_url') || DEFAULT_GAS_URL;
 
   // DOM Elements
+  const btnHeaderBack = document.getElementById('btnHeaderBack');
+  const btnHeaderBackText = document.getElementById('btnHeaderBackText');
+  const btnDashBack = document.getElementById('btnDashBack');
+  const btnDashBackText = document.getElementById('btnDashBackText');
+  let isViewingFromAdmin = false;
   const themeToggleBtn = document.getElementById('themeToggleBtn');
   const adminModeBtn = document.getElementById('adminModeBtn');
   const btnCloseAdminBtn = document.getElementById('btnCloseAdminBtn');
@@ -152,8 +157,14 @@
       onDataLoaded();
     }
 
+    // 브라우저 뒤로가기 시 사이트 밖(구글 등)으로 튕기는 문제 방지: 초기 상태를 login으로 등록
+    if (!history.state) {
+      history.replaceState({ view: 'login' }, '', window.location.pathname + window.location.search);
+    }
+
     if (sessionStorage.getItem('snw_is_admin') === 'true') {
-      openAdminView();
+      openAdminView(false);
+      history.replaceState({ view: 'admin' }, '', '#admin');
       return;
     }
   }
@@ -469,7 +480,44 @@
     loginError.style.display = 'block';
   }
 
-  function loginSuccess(emp, birth) {
+  function showLoginView(pushHistory = true) {
+    currentEmp = null;
+    isViewingFromAdmin = false;
+    document.body.classList.remove('admin-view-active');
+
+    dashboardSection.style.display = 'none';
+    adminSection.style.display = 'none';
+    loginSection.style.display = 'block';
+
+    if (btnHeaderBack) btnHeaderBack.style.display = 'none';
+    if (btnDashBack) btnDashBack.style.display = 'none';
+    if (adminHeaderControls) adminHeaderControls.style.display = 'none';
+    if (configApiBtn) configApiBtn.style.display = 'none';
+    if (adminModeBtn) adminModeBtn.style.display = 'none';
+
+    loginError.style.display = 'none';
+    if (pushHistory) {
+      history.pushState({ view: 'login' }, '', window.location.pathname + window.location.search);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function handleGoBack() {
+    // 1. 대시보드 화면이고 관리자 모드에서 조회한 경우: 관리자 화면으로 복귀
+    if (dashboardSection.style.display !== 'none' && (isViewingFromAdmin || sessionStorage.getItem('snw_is_admin') === 'true')) {
+      openAdminView(true);
+      return;
+    }
+
+    // 2. 브라우저 히스토리 pop 또는 로그인 화면 복귀
+    if (window.history.length > 1 && window.location.hash) {
+      window.history.back();
+    } else {
+      showLoginView(true);
+    }
+  }
+
+  function loginSuccess(emp, birth, pushHistory = true, fromAdmin = false) {
     currentEmp = emp;
     if (birth) {
       currentEmp.birth = birth;
@@ -477,11 +525,39 @@
     }
     sessionStorage.setItem('snw_logged_emp_id', emp.emp_id);
     sessionStorage.setItem('snw_logged_name', emp.name);
+
+    isViewingFromAdmin = Boolean(fromAdmin || sessionStorage.getItem('snw_is_admin') === 'true');
     
     // Switch views
     loginSection.style.display = 'none';
     adminSection.style.display = 'none';
     dashboardSection.style.display = 'flex';
+
+    // Header Back Button
+    if (btnHeaderBack) {
+      btnHeaderBack.style.display = 'inline-flex';
+      if (btnHeaderBackText) {
+        btnHeaderBackText.textContent = isViewingFromAdmin ? '관리자 목록' : '뒤로가기';
+      }
+      btnHeaderBack.title = isViewingFromAdmin ? '전체 관리자 목록으로 복귀' : '로그인 화면으로 돌아가기';
+    }
+
+    // Dashboard Profile-Right Back Button
+    if (btnDashBack) {
+      btnDashBack.style.display = 'inline-flex';
+      if (btnDashBackText) {
+        btnDashBackText.textContent = isViewingFromAdmin ? '관리자 목록으로 복귀' : '로그인 화면으로';
+      }
+      btnDashBack.title = isViewingFromAdmin ? '전체 사원 연차 관리 대시보드로 복귀' : '로그인 화면으로 돌아가기';
+    }
+
+    if (pushHistory) {
+      history.pushState({
+        view: 'dashboard',
+        empId: emp.emp_id,
+        fromAdmin: isViewingFromAdmin
+      }, '', `#emp-${emp.emp_id}`);
+    }
 
     renderEmployeeDashboard(emp);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -492,22 +568,18 @@
     if (savedId && snwData && snwData.employees) {
       const found = snwData.employees.find(e => e.emp_id === savedId);
       if (found) {
-        loginSuccess(found);
+        loginSuccess(found, null, false);
       }
     }
   }
 
   logoutBtn.addEventListener('click', () => {
-    currentEmp = null;
     sessionStorage.removeItem('snw_logged_emp_id');
     sessionStorage.removeItem('snw_logged_name');
     sessionStorage.removeItem('snw_logged_birth');
-    dashboardSection.style.display = 'none';
-    adminSection.style.display = 'none';
-    loginSection.style.display = 'block';
     inputName.value = '';
     inputBirth.value = '';
-    loginError.style.display = 'none';
+    showLoginView(true);
   });
 
   // 5. Render Employee Dashboard
@@ -1002,14 +1074,27 @@
     adminLogoutHeaderBtn.addEventListener('click', closeAdminView);
   }
 
-  function openAdminView() {
+  function openAdminView(pushHistory = true) {
     loginSection.style.display = 'none';
     dashboardSection.style.display = 'none';
     adminSection.style.display = 'flex';
+    isViewingFromAdmin = false;
 
     if (adminHeaderControls) adminHeaderControls.style.display = 'inline-flex';
     if (configApiBtn) configApiBtn.style.display = 'inline-flex';
     if (adminModeBtn) adminModeBtn.style.display = 'inline-flex';
+
+    if (btnHeaderBack) {
+      btnHeaderBack.style.display = 'inline-flex';
+      if (btnHeaderBackText) {
+        btnHeaderBackText.textContent = '뒤로가기';
+      }
+      btnHeaderBack.title = '로그인 화면으로 돌아가기';
+    }
+
+    if (pushHistory) {
+      history.pushState({ view: 'admin' }, '', '#admin');
+    }
 
     // 0. 로컬 window.SNW_DATA fallback 확인
     if ((!snwData || !snwData.employees || snwData.employees.length === 0) && window.SNW_DATA) {
@@ -1062,17 +1147,7 @@
   function closeAdminView() {
     document.body.classList.remove('admin-view-active');
     sessionStorage.removeItem('snw_is_admin');
-    adminSection.style.display = 'none';
-    if (adminHeaderControls) adminHeaderControls.style.display = 'none';
-    if (configApiBtn) configApiBtn.style.display = 'none';
-    if (adminModeBtn) adminModeBtn.style.display = 'none';
-
-    if (currentEmp) {
-      dashboardSection.style.display = 'flex';
-    } else {
-      loginSection.style.display = 'block';
-      switchLoginTab('employee');
-    }
+    showLoginView(true);
   }
 
   async function loadAdminDataFromGas(forceRefresh, isBackground) {
@@ -1382,7 +1457,7 @@
         const id = e.target.getAttribute('data-id');
         const emp = snwData.employees.find(x => x.emp_id === id);
         if (emp) {
-          loginSuccess(emp);
+          loginSuccess(emp, null, true, true);
         }
       });
     });
@@ -1424,6 +1499,33 @@
 
   // 10. In-browser Excel Re-upload Support
   function setupEventListeners() {
+    // 뒤로가기 버튼 클릭 이벤트 연결
+    if (btnHeaderBack) {
+      btnHeaderBack.addEventListener('click', handleGoBack);
+    }
+    if (btnDashBack) {
+      btnDashBack.addEventListener('click', handleGoBack);
+    }
+
+    // 브라우저 뒤로가기 / 앞으로가기 키 및 모바일 뒤로가기 제스처 완벽 지원
+    window.addEventListener('popstate', (e) => {
+      const state = e.state;
+      if (!state || state.view === 'login') {
+        showLoginView(false);
+      } else if (state.view === 'admin') {
+        openAdminView(false);
+      } else if (state.view === 'dashboard' && state.empId) {
+        const found = snwData && snwData.employees ? snwData.employees.find(x => x.emp_id === state.empId) : null;
+        if (found) {
+          loginSuccess(found, null, false, state.fromAdmin);
+        } else {
+          showLoginView(false);
+        }
+      } else {
+        showLoginView(false);
+      }
+    });
+
     uploadRosterInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
