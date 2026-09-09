@@ -134,25 +134,27 @@
     initLoginTabs();
     initTenureFilters();
 
-    if (sessionStorage.getItem('snw_is_admin') === 'true') {
-      openAdminView();
-      return;
-    }
-
-    // Load data from window.SNW_DATA or fetch data.json
+    // 0. Load data from window.SNW_DATA or fetch data.json first
     if (window.SNW_DATA) {
       snwData = window.SNW_DATA;
-      onDataLoaded();
     } else {
       try {
         const resp = await fetch('data.json');
         snwData = await resp.json();
-        onDataLoaded();
       } catch (err) {
         console.warn('Local data.json not loaded, using remote GAS mode if configured.');
         const demoBox = document.querySelector('.quick-demo-box');
         if (demoBox) demoBox.style.display = 'none';
       }
+    }
+
+    if (snwData) {
+      onDataLoaded();
+    }
+
+    if (sessionStorage.getItem('snw_is_admin') === 'true') {
+      openAdminView();
+      return;
     }
   }
 
@@ -1009,7 +1011,12 @@
     if (configApiBtn) configApiBtn.style.display = 'inline-flex';
     if (adminModeBtn) adminModeBtn.style.display = 'inline-flex';
 
-    // 1. 브라우저 세션 캐시 확인 -> 캐시가 있으면 즉시 0초 만에 화면 렌더링!
+    // 0. 로컬 window.SNW_DATA fallback 확인
+    if ((!snwData || !snwData.employees || snwData.employees.length === 0) && window.SNW_DATA) {
+      snwData = window.SNW_DATA;
+    }
+
+    // 1. 브라우저 세션 캐시 확인
     const cachedAdminStr = sessionStorage.getItem('snw_admin_cache');
     let hasLoadedFromCache = false;
 
@@ -1023,27 +1030,30 @@
             summary: calculateAdminSummary(cachedData.employees),
             employees: cachedData.employees
           };
-          populateAdminDeptOptions();
-          renderAdminSummary();
-          renderAdminTable();
           hasLoadedFromCache = true;
         }
       } catch (e) {
         console.warn('Failed to parse admin session cache:', e);
       }
-    } else {
+    }
+
+    // 즉시 화면 렌더링 (로컬 데이터 또는 캐시 데이터 기반 0초 렌더링)
+    if (snwData && snwData.employees && snwData.employees.length > 0) {
+      populateAdminDeptOptions();
       renderAdminSummary();
       renderAdminTable();
     }
 
     document.body.classList.add('admin-view-active');
 
-    // 2. 캐시가 없거나 최초 진입인 경우 고속 로드 실행
-    if ((!snwData || !snwData.employees || snwData.employees.length === 0) && gasApiUrl) {
-      loadAdminDataFromGas(false);
-    } else if (gasApiUrl && hasLoadedFromCache) {
-      // 캐시로 먼저 보여준 뒤, 백그라운드에서 최신 데이터 조용히 확인
-      loadAdminDataFromGas(false, true);
+    // 2. 구글 시트 연동이 있는 경우 최신 데이터 확인
+    if (gasApiUrl) {
+      if (!snwData || !snwData.employees || snwData.employees.length === 0) {
+        loadAdminDataFromGas(false, false);
+      } else {
+        // 이미 로컬 데이터로 표시 중이므로 백그라운드에서 조용히 최신 데이터 확인
+        loadAdminDataFromGas(false, true);
+      }
     }
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1071,9 +1081,11 @@
     const refreshIcon = refreshBtn ? refreshBtn.querySelector('.spin-target') : null;
     if (refreshIcon) refreshIcon.classList.add('spin');
 
+    const hasExistingData = (snwData && snwData.employees && snwData.employees.length > 0);
+
     // 화면에 데이터가 전혀 없을 때만 로딩 안내 표시
-    if (!isBackground && (!snwData || !snwData.employees || snwData.employees.length === 0) && tbody) {
-      tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding: 40px; color: var(--primary);">
+    if (!isBackground && !hasExistingData && tbody) {
+      tbody.innerHTML = `<tr><td colspan="12" style="text-align:center; padding: 40px; color: var(--primary);">
         <div style="font-size: 1.5rem; margin-bottom: 8px;">⚡</div>
         <div><strong>구글 시트에서 전체 사원 연차 데이터를 고속 동기화 중입니다...</strong></div>
         <small style="color: var(--text-secondary);">해시맵 인덱싱 알고리즘으로 빠르게 집계합니다.</small>
@@ -1089,7 +1101,7 @@
         data = await resp.json();
       }
 
-      if (data.success && data.employees) {
+      if (data.success && data.employees && data.employees.length > 0) {
         // 브라우저 세션 캐시에 보관하여 다음 조회 시 0초 즉시 렌더링
         try {
           sessionStorage.setItem('snw_admin_cache', JSON.stringify(data));
@@ -1109,18 +1121,40 @@
           alert('구글 시트 최신 데이터로 동기화가 완료되었습니다!');
         }
       } else {
-        if (!isBackground && tbody && (!snwData || !snwData.employees || snwData.employees.length === 0)) {
-          tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding: 30px; color: var(--text-secondary);">
-            전체 사원 명단은 사원명부 엑셀 파일을 업로드하시거나 구글 시트 연동을 통해 확인할 수 있습니다.
-          </td></tr>`;
+        console.warn('GAS admin response error or empty:', data);
+        if (forceRefresh) {
+          alert('구글 시트 동기화 안내: ' + (data.message || '응답 데이터 없음') + '\n(기존 로컬 데이터로 안전하게 유지됩니다.)');
+        }
+        // 로컬 데이터가 없을 때만 fallback으로 window.SNW_DATA 시도
+        if (!snwData || !snwData.employees || snwData.employees.length === 0) {
+          if (window.SNW_DATA) {
+            snwData = window.SNW_DATA;
+            populateAdminDeptOptions();
+            renderAdminSummary();
+            renderAdminTable();
+          } else if (!isBackground && tbody) {
+            tbody.innerHTML = `<tr><td colspan="12" style="text-align:center; padding: 30px; color: var(--text-secondary);">
+              전체 사원 명단은 사원명부 엑셀 파일을 업로드하시거나 구글 시트 연동을 통해 확인할 수 있습니다.
+            </td></tr>`;
+          }
         }
       }
     } catch (err) {
       console.warn('GAS admin load warning:', err);
-      if (!isBackground && tbody && (!snwData || !snwData.employees || snwData.employees.length === 0)) {
-        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding: 30px; color: var(--text-secondary);">
-          상단 [📁 사원명부 파일 선택]을 통해 엑셀을 업로드하시면 전체 명단이 즉시 산정되어 표시됩니다.
-        </td></tr>`;
+      if (forceRefresh) {
+        alert('구글 시트 연결 실패: ' + err.message + '\n(기존 데이터로 표시가 유지됩니다.)');
+      }
+      if (!snwData || !snwData.employees || snwData.employees.length === 0) {
+        if (window.SNW_DATA) {
+          snwData = window.SNW_DATA;
+          populateAdminDeptOptions();
+          renderAdminSummary();
+          renderAdminTable();
+        } else if (!isBackground && tbody) {
+          tbody.innerHTML = `<tr><td colspan="12" style="text-align:center; padding: 30px; color: var(--text-secondary);">
+            상단 [📁 사원명부 파일 선택]을 통해 엑셀을 업로드하시면 전체 명단이 즉시 산정되어 표시됩니다.
+          </td></tr>`;
+        }
       }
     } finally {
       if (refreshIcon) {
