@@ -117,6 +117,7 @@
   const adminTotalUsed = document.getElementById('adminTotalUsed');
   const adminTotalRemaining = document.getElementById('adminTotalRemaining');
   const adminSearchInput = document.getElementById('adminSearchInput');
+  const adminCycleYearFilter = document.getElementById('adminCycleYearFilter');
   const adminDeptFilter = document.getElementById('adminDeptFilter');
   const adminSortFilter = document.getElementById('adminSortFilter');
   const adminTenureFilter = document.getElementById('adminTenureFilter');
@@ -171,6 +172,7 @@
 
   function onDataLoaded() {
     renderDemoChips();
+    populateAdminCycleYearOptions();
     populateAdminDeptOptions();
     checkSessionLogin();
   }
@@ -1124,6 +1126,7 @@
 
     // 즉시 화면 렌더링 (로컬 데이터 또는 캐시 데이터 기반 0초 렌더링)
     if (snwData && snwData.employees && snwData.employees.length > 0) {
+      populateAdminCycleYearOptions();
       populateAdminDeptOptions();
       renderAdminSummary();
       renderAdminTable();
@@ -1188,6 +1191,7 @@
           summary: calculateAdminSummary(data.employees),
           employees: data.employees
         };
+        populateAdminCycleYearOptions();
         populateAdminDeptOptions();
         renderAdminSummary();
         renderAdminTable();
@@ -1204,6 +1208,7 @@
         if (!snwData || !snwData.employees || snwData.employees.length === 0) {
           if (window.SNW_DATA) {
             snwData = window.SNW_DATA;
+            populateAdminCycleYearOptions();
             populateAdminDeptOptions();
             renderAdminSummary();
             renderAdminTable();
@@ -1254,6 +1259,36 @@
       total_remaining: rem,
       avg_usage_rate: Number(avgRate)
     };
+  }
+
+  function getEmployeeCycleYear(emp) {
+    if (!emp || !emp.leave_calc) return null;
+    const pStart = emp.leave_calc.period_start;
+    if (!pStart) return null;
+    const m = String(pStart).trim().match(/^(\d{4})/);
+    return m ? m[1] : null;
+  }
+
+  function populateAdminCycleYearOptions() {
+    if (!snwData || !snwData.employees || !adminCycleYearFilter) return;
+    const yearCounts = {};
+    snwData.employees.forEach(e => {
+      const y = getEmployeeCycleYear(e);
+      if (y) {
+        yearCounts[y] = (yearCounts[y] || 0) + 1;
+      }
+    });
+    const sortedYears = Object.keys(yearCounts).sort((a, b) => b.localeCompare(a));
+    const currentVal = adminCycleYearFilter.value || 'all';
+
+    let html = `<option value="all">📅 연차주기: 전체 연도 (${snwData.employees.length}명)</option>`;
+    sortedYears.forEach(y => {
+      html += `<option value="${y}">📅 ${y}년 시작 연차주기 (${y}년 리셋 / ${yearCounts[y]}명)</option>`;
+    });
+    adminCycleYearFilter.innerHTML = html;
+    if (sortedYears.includes(currentVal) || currentVal === 'all') {
+      adminCycleYearFilter.value = currentVal;
+    }
   }
 
   function populateAdminDeptOptions() {
@@ -1318,55 +1353,105 @@
   function renderAdminSummary() {
     if (!snwData) return;
     const s = snwData.summary;
-    const emps = snwData.employees || [];
+    const allEmps = snwData.employees || [];
+    const selectedYear = adminCycleYearFilter ? adminCycleYearFilter.value : 'all';
 
-    const underCount = emps.filter(e => e.leave_calc.is_under_1_year).length;
-    const regularCount = emps.length - underCount;
+    // Base filtered by cycle start year if specified
+    const yearFilteredEmps = selectedYear === 'all'
+      ? allEmps
+      : allEmps.filter(e => getEmployeeCycleYear(e) === selectedYear);
 
-    // Update Tab Counters
-    if (countTenureAll) countTenureAll.textContent = `${emps.length}명`;
+    const underCount = yearFilteredEmps.filter(e => e.leave_calc && e.leave_calc.is_under_1_year).length;
+    const regularCount = yearFilteredEmps.length - underCount;
+
+    // Update Tab Counters (showing count in selected year or overall)
+    if (countTenureAll) countTenureAll.textContent = `${yearFilteredEmps.length}명`;
     if (countTenureUnder1) countTenureUnder1.textContent = `${underCount}명`;
     if (countTenureOver1) countTenureOver1.textContent = `${regularCount}명`;
 
-    // Dynamic stat card display based on filter
+    // Target list for the 4 stat cards based on currentTenureFilter
+    let targetEmps = yearFilteredEmps;
     if (currentTenureFilter === 'under1') {
-      const underEmps = emps.filter(e => e.leave_calc.is_under_1_year);
-      let g = 0, u = 0, r = 0;
-      underEmps.forEach(e => {
+      targetEmps = yearFilteredEmps.filter(e => e.leave_calc && e.leave_calc.is_under_1_year);
+    } else if (currentTenureFilter === 'over1') {
+      targetEmps = yearFilteredEmps.filter(e => e.leave_calc && !e.leave_calc.is_under_1_year);
+    }
+
+    let g = 0, u = 0, r = 0;
+    targetEmps.forEach(e => {
+      if (e.leave_calc) {
         g += (e.leave_calc.total_granted || 0);
         u += (e.leave_calc.used_days || 0);
         r += (e.leave_calc.remaining_days || 0);
-      });
-      const rate = g > 0 ? ((u / g) * 100).toFixed(1) : 0;
+      }
+    });
+    const avgRate = g > 0 ? ((u / g) * 100).toFixed(1) : 0;
+    const yearSuffix = selectedYear === 'all' ? '' : ` (${selectedYear}년 주기)`;
 
-      adminTotalEmp.innerHTML = `${underCount}명 <small style="font-size:0.85rem; color:#d97706; font-weight:700;">(1년미만)</small>`;
-      document.querySelector('.admin-stat-card:nth-child(1) .stat-sub').textContent = `입사 1년 미만 월차 대상 사원`;
+    if (currentTenureFilter === 'under1') {
+      adminTotalEmp.innerHTML = `${targetEmps.length}명 <small style="font-size:0.85rem; color:#d97706; font-weight:700;">(1년미만${yearSuffix})</small>`;
+      const sub1 = document.querySelector('.admin-stat-card:nth-child(1) .stat-sub');
+      if (sub1) sub1.textContent = `입사 1년 미만 월차 대상 사원${yearSuffix}`;
 
       adminTotalGranted.textContent = `${g.toFixed(1)}일`;
-      document.querySelector('.admin-stat-card:nth-child(2) .stat-sub').textContent = `인당 평균 ${(g / (underCount || 1)).toFixed(1)}일 (월 단위 발생)`;
+      const sub2 = document.querySelector('.admin-stat-card:nth-child(2) .stat-sub');
+      if (sub2) sub2.textContent = `인당 평균 ${(g / (targetEmps.length || 1)).toFixed(1)}일 (월 단위 발생)`;
 
       adminTotalUsed.textContent = `${u.toFixed(1)}일`;
-      document.querySelector('.admin-stat-card:nth-child(3) .stat-sub').textContent = `1년 미만 평균 사용률 ${rate}%`;
+      const sub3 = document.querySelector('.admin-stat-card:nth-child(3) .stat-sub');
+      if (sub3) sub3.textContent = `1년 미만 평균 사용률 ${avgRate}%`;
 
       adminTotalRemaining.textContent = `${r.toFixed(1)}일`;
-      document.querySelector('.admin-stat-card:nth-child(4) .stat-sub').textContent = `입사 1년 시점 소멸 예정 잔여`;
+      const sub4 = document.querySelector('.admin-stat-card:nth-child(4) .stat-sub');
+      if (sub4) sub4.textContent = `입사 1년 시점 소멸 예정 잔여`;
+    } else if (currentTenureFilter === 'over1') {
+      adminTotalEmp.innerHTML = `${targetEmps.length}명 <small style="font-size:0.85rem; color:var(--primary); font-weight:700;">(1년이상${yearSuffix})</small>`;
+      const sub1 = document.querySelector('.admin-stat-card:nth-child(1) .stat-sub');
+      if (sub1) sub1.textContent = `1년 이상 정규 연차 대상${yearSuffix}`;
+
+      adminTotalGranted.textContent = `${g.toFixed(1)}일`;
+      const sub2 = document.querySelector('.admin-stat-card:nth-child(2) .stat-sub');
+      if (sub2) sub2.textContent = `인당 평균 ${(g / (targetEmps.length || 1)).toFixed(1)}일`;
+
+      adminTotalUsed.textContent = `${u.toFixed(1)}일`;
+      const sub3 = document.querySelector('.admin-stat-card:nth-child(3) .stat-sub');
+      if (sub3) sub3.textContent = `평균 사용률 ${avgRate}%`;
+
+      adminTotalRemaining.textContent = `${r.toFixed(1)}일`;
+      const sub4 = document.querySelector('.admin-stat-card:nth-child(4) .stat-sub');
+      if (sub4) sub4.textContent = `미사용 잔여율 ${(100 - avgRate).toFixed(1)}%`;
     } else {
-      adminTotalEmp.textContent = `${emps.length}명`;
-      document.querySelector('.admin-stat-card:nth-child(1) .stat-sub').textContent = `1년 이상: ${regularCount}명 / 1년 미만: ${underCount}명`;
+      adminTotalEmp.innerHTML = selectedYear === 'all'
+        ? `${targetEmps.length}명`
+        : `${targetEmps.length}명 <small style="font-size:0.85rem; color:var(--primary); font-weight:700;">(${selectedYear}년 주기)</small>`;
+      const sub1 = document.querySelector('.admin-stat-card:nth-child(1) .stat-sub');
+      if (sub1) sub1.textContent = `1년 이상: ${regularCount}명 / 1년 미만: ${underCount}명${yearSuffix}`;
 
-      adminTotalGranted.textContent = `${s.total_granted.toFixed(1)}일`;
-      document.querySelector('.admin-stat-card:nth-child(2) .stat-sub').textContent = `인당 평균 ${(s.total_granted / (emps.length || 1)).toFixed(1)}일`;
+      adminTotalGranted.textContent = `${g.toFixed(1)}일`;
+      const sub2 = document.querySelector('.admin-stat-card:nth-child(2) .stat-sub');
+      if (sub2) sub2.textContent = `인당 평균 ${(g / (targetEmps.length || 1)).toFixed(1)}일`;
 
-      adminTotalUsed.textContent = `${s.total_used.toFixed(1)}일`;
-      document.querySelector('.admin-stat-card:nth-child(3) .stat-sub').textContent = `평균 사용률 ${s.avg_usage_rate}%`;
+      adminTotalUsed.textContent = `${u.toFixed(1)}일`;
+      const sub3 = document.querySelector('.admin-stat-card:nth-child(3) .stat-sub');
+      if (sub3) sub3.textContent = `평균 사용률 ${avgRate}%`;
 
-      adminTotalRemaining.textContent = `${s.total_remaining.toFixed(1)}일`;
-      document.querySelector('.admin-stat-card:nth-child(4) .stat-sub').textContent = `미사용 잔여율 ${(100 - s.avg_usage_rate).toFixed(1)}%`;
+      adminTotalRemaining.textContent = `${r.toFixed(1)}일`;
+      const sub4 = document.querySelector('.admin-stat-card:nth-child(4) .stat-sub');
+      if (sub4) sub4.textContent = `미사용 잔여율 ${(100 - avgRate).toFixed(1)}%`;
     }
   }
 
+  if (adminCycleYearFilter) {
+    adminCycleYearFilter.addEventListener('change', () => {
+      renderAdminSummary();
+      renderAdminTable();
+    });
+  }
   adminSearchInput.addEventListener('input', renderAdminTable);
-  adminDeptFilter.addEventListener('change', renderAdminTable);
+  adminDeptFilter.addEventListener('change', () => {
+    renderAdminSummary();
+    renderAdminTable();
+  });
   adminSortFilter.addEventListener('change', renderAdminTable);
 
   function renderAdminTable() {
@@ -1375,11 +1460,18 @@
     const query = adminSearchInput.value.trim().toLowerCase();
     const dept = adminDeptFilter.value;
     const sort = adminSortFilter.value;
+    const selectedYear = adminCycleYearFilter ? adminCycleYearFilter.value : 'all';
 
     let list = snwData.employees.slice();
 
     // Filter
     list = list.filter(emp => {
+      // Cycle year filter (연차주기 시작연도)
+      if (selectedYear !== 'all') {
+        const cYear = getEmployeeCycleYear(emp);
+        if (cYear !== selectedYear) return false;
+      }
+
       // Tenure filter
       if (currentTenureFilter === 'under1' && !emp.leave_calc.is_under_1_year) return false;
       if (currentTenureFilter === 'over1' && emp.leave_calc.is_under_1_year) return false;
@@ -1408,11 +1500,28 @@
 
     currentAdminList = list;
 
+    if (list.length === 0) {
+      adminTableBody.innerHTML = `
+        <tr>
+          <td colspan="12" style="text-align:center; padding: 40px; color: var(--text-secondary);">
+            <div style="font-size: 1.5rem; margin-bottom: 8px;">🔍</div>
+            <strong>선택하신 필터 조건에 해당하는 사원이 없습니다.</strong>
+            <div style="font-size: 0.82rem; margin-top: 4px; color: var(--text-muted);">연차주기 연도나 부서, 검색어를 변경해보세요.</div>
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
     adminTableBody.innerHTML = list.map(emp => {
       const calc = emp.leave_calc;
       const periodShort = `${calc.period_start.slice(2)}~${calc.period_end.slice(2)}`;
       const remColor = calc.remaining_days <= 3 ? 'text-danger' : (calc.remaining_days >= 15 ? 'text-success' : '');
       const isUnder = calc.is_under_1_year;
+      const cYear = getEmployeeCycleYear(emp);
+      const yearBadge = cYear
+        ? `<span class="badge ${cYear === '2026' ? 'badge-primary' : 'badge-secondary'}" style="font-size:0.72rem; padding: 2px 5px; margin-right: 4px; vertical-align: middle;">${cYear}년</span>`
+        : '';
 
       const tenureHtml = isUnder
         ? `<strong class="text-primary">${emp.service_months}개월차</strong> <small class="text-muted">(${emp.service_days}일)</small>`
@@ -1439,7 +1548,7 @@
           <td>${emp.position || emp.rank || '-'}</td>
           <td>${emp.join_date}</td>
           <td>${tenureHtml}</td>
-          <td><small class="text-muted">${periodShort}</small></td>
+          <td>${yearBadge}<small class="text-muted">${periodShort}</small></td>
           <td>${grantedHtml}</td>
           <td class="text-danger">${calc.used_days.toFixed(1)}</td>
           <td class="${remColor}"><strong>${calc.remaining_days.toFixed(1)}</strong></td>
@@ -1469,6 +1578,7 @@
 
     const rows = currentAdminList.map(emp => {
       const calc = emp.leave_calc;
+      const cYear = getEmployeeCycleYear(emp);
       return {
         '사번': emp.emp_id,
         '성명': emp.name,
@@ -1480,6 +1590,7 @@
         '근속연수': emp.service_years,
         '근속기간': emp.service_text,
         '1년미만여부': calc.is_under_1_year ? 'Y' : 'N',
+        '연차주기시작연도': cYear ? `${cYear}년` : '',
         '연차주기시작': calc.period_start,
         '연차주기종료': calc.period_end,
         '다음연차갱신일': calc.next_renewal_date,
