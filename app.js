@@ -950,26 +950,115 @@
 
     cycleTabGroup.innerHTML = '';
 
-    // Render an individual tab for each cycle
-    cycles.forEach((c, idx) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      const isCycleActive = (currentUsageMode === 'cycle' && selectedCycleIndex === idx);
-      btn.className = `tab-btn ${isCycleActive ? 'active' : ''}`;
-      
-      const count = (c.usage_list || []).length;
-      let shortLabel = c.is_current ? '현재 주기' : c.cycle_label;
-      btn.textContent = `${shortLabel} (${count}건)`;
-      btn.title = `${c.period_name || c.cycle_label} 사용 내역 보기`;
+    // 주기가 3개 이하인 경우: 기존처럼 개별 탭 버튼으로 나열
+    if (cycles.length <= 3) {
+      cycles.forEach((c, idx) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        const isCycleActive = (currentUsageMode === 'cycle' && selectedCycleIndex === idx);
+        btn.className = `tab-btn ${isCycleActive ? 'active' : ''}`;
+        
+        const count = (c.usage_list || []).length;
+        let shortLabel = c.is_current ? '현재 주기' : c.cycle_label;
+        btn.textContent = `${shortLabel} (${count}건)`;
+        btn.title = `${c.period_name || c.cycle_label} 사용 내역 보기`;
 
-      btn.addEventListener('click', () => {
-        currentUsageMode = 'cycle';
-        selectCycle(idx);
+        btn.addEventListener('click', () => {
+          currentUsageMode = 'cycle';
+          selectCycle(idx);
+        });
+        cycleTabGroup.appendChild(btn);
       });
-      cycleTabGroup.appendChild(btn);
-    });
+    } else {
+      // 주기가 4개 이상인 경우 (근속 장기자):
+      // 1) 현재 주기 버튼
+      // 2) 직전 연차 주기 버튼
+      // 3) 이전 연차 주기 드롭다운 셀렉터 (2년 전 주기 ~ 마지막 주기)
 
-    // Render "전체 이력" tab
+      // 1. 현재 주기 버튼 (index 0)
+      const c0 = cycles[0];
+      const count0 = (c0.usage_list || []).length;
+      const isCurrActive = (currentUsageMode === 'cycle' && selectedCycleIndex === 0);
+      const btn0 = document.createElement('button');
+      btn0.type = 'button';
+      btn0.className = `tab-btn ${isCurrActive ? 'active' : ''}`;
+      btn0.textContent = `현재 주기 (${count0}건)`;
+      btn0.title = `${c0.period_name || '현재 연차 주기'} 사용 내역 보기`;
+      btn0.addEventListener('click', () => {
+        currentUsageMode = 'cycle';
+        selectCycle(0);
+      });
+      cycleTabGroup.appendChild(btn0);
+
+      // 2. 직전 연차 주기 버튼 (index 1)
+      const c1 = cycles[1];
+      const count1 = (c1.usage_list || []).length;
+      const isPrevActive = (currentUsageMode === 'cycle' && selectedCycleIndex === 1);
+      const btn1 = document.createElement('button');
+      btn1.type = 'button';
+      btn1.className = `tab-btn ${isPrevActive ? 'active' : ''}`;
+      btn1.textContent = `직전 연차 주기 (${count1}건)`;
+      btn1.title = `${c1.period_name || '직전 연차 주기'} 사용 내역 보기`;
+      btn1.addEventListener('click', () => {
+        currentUsageMode = 'cycle';
+        selectCycle(1);
+      });
+      cycleTabGroup.appendChild(btn1);
+
+      // 3. 과거 주기 드롭다운 셀렉터 (index 2 ~ cycles.length - 1)
+      const isOlderActive = (currentUsageMode === 'cycle' && selectedCycleIndex >= 2);
+      const selectWrap = document.createElement('div');
+      selectWrap.className = 'cycle-select-wrap';
+
+      const select = document.createElement('select');
+      select.className = `cycle-select ${isOlderActive ? 'active' : ''}`;
+      select.title = '과거 연차 주기 선택';
+
+      // 기본 placeholder 옵션
+      const defaultOpt = document.createElement('option');
+      defaultOpt.value = '';
+      const olderCount = cycles.length - 2;
+      if (isOlderActive && cycles[selectedCycleIndex]) {
+        const activeCycle = cycles[selectedCycleIndex];
+        const activeCount = (activeCycle.usage_list || []).length;
+        defaultOpt.textContent = `📜 ${activeCycle.cycle_label} (${activeCount}건)`;
+      } else {
+        defaultOpt.textContent = `📜 이전 주기 (${olderCount}개) ▾`;
+      }
+      defaultOpt.disabled = true;
+      if (!isOlderActive) {
+        defaultOpt.selected = true;
+      }
+      select.appendChild(defaultOpt);
+
+      // 2년 전 주기부터 끝까지 옵션 추가
+      for (let i = 2; i < cycles.length; i++) {
+        const c = cycles[i];
+        const count = (c.usage_list || []).length;
+        const opt = document.createElement('option');
+        opt.value = String(i);
+        if (isOlderActive && selectedCycleIndex === i) {
+          opt.selected = true;
+        }
+        const periodShort = (c.period_start && c.period_end) ? ` · ${c.period_start.slice(2)}~${c.period_end.slice(2)}` : '';
+        const usageTag = count > 0 ? ` [${count}건]` : ' (0건)';
+        opt.textContent = `${c.cycle_label}${usageTag}${periodShort}`;
+        select.appendChild(opt);
+      }
+
+      select.addEventListener('change', (e) => {
+        const idx = parseInt(e.target.value, 10);
+        if (!isNaN(idx)) {
+          currentUsageMode = 'cycle';
+          selectCycle(idx);
+        }
+      });
+
+      selectWrap.appendChild(select);
+      cycleTabGroup.appendChild(selectWrap);
+    }
+
+    // 4. Render "전체 이력" tab
     const allBtn = document.createElement('button');
     allBtn.type = 'button';
     allBtn.className = `tab-btn ${currentUsageMode === 'all' ? 'active' : ''}`;
