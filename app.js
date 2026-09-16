@@ -1940,14 +1940,14 @@
       const rowClass = isEligible ? '' : 'row-ineligible';
 
       let statusBadge = '';
-      if (isEligible) {
-        statusBadge = `<span class="badge badge-success" style="font-size:0.72rem; padding: 2px 6px;">정산대상</span>`;
-      } else if (ev.statusType === 'new_hire') {
-        statusBadge = `<span class="badge badge-warning" style="font-size:0.72rem; padding: 2px 6px;">신규입사(1년미만 제외)</span>`;
-      } else if (ev.statusType === 'no_wage') {
-        statusBadge = `<span class="badge badge-secondary" style="font-size:0.72rem; padding: 2px 6px;">시급미등록(비대상)</span>`;
-      } else {
-        statusBadge = `<span class="badge badge-secondary" style="font-size:0.72rem; padding: 2px 6px;">${ev.statusText}</span>`;
+      if (!isEligible) {
+        if (ev.statusType === 'new_hire') {
+          statusBadge = `<div style="margin-top: 2px;"><span class="badge badge-warning" style="font-size:0.72rem; padding: 2px 6px;">신규입사(1년미만 제외)</span></div>`;
+        } else if (ev.statusType === 'no_wage') {
+          statusBadge = `<div style="margin-top: 2px;"><span class="badge badge-secondary" style="font-size:0.72rem; padding: 2px 6px;">시급미등록(비대상)</span></div>`;
+        } else {
+          statusBadge = `<div style="margin-top: 2px;"><span class="badge badge-secondary" style="font-size:0.72rem; padding: 2px 6px;">${ev.statusText}</span></div>`;
+        }
       }
 
       const wageText = ev.wage > 0 ? `₩ ${ev.wage.toLocaleString()}` : `<span class="text-muted" style="font-size:0.8rem;">미등록</span>`;
@@ -1960,8 +1960,7 @@
           <td>${idx + 1}</td>
           <td>${emp.emp_id}</td>
           <td style="text-align:left;">
-            <strong>${emp.name}</strong>
-            <div style="margin-top: 2px;">${statusBadge}</div>
+            <strong>${emp.name}</strong>${statusBadge}
           </td>
           <td style="text-align:left;">${emp.dept}</td>
           <td>${emp.position || emp.rank || '-'}</td>
