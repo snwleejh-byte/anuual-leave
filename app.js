@@ -1701,13 +1701,13 @@
       if (tabOverview) tabOverview.classList.remove('active');
       if (tabSettlement) tabSettlement.classList.add('active');
       if (viewOverview) viewOverview.style.display = 'none';
-      if (viewSettlement) viewSettlement.style.display = 'block';
+      if (viewSettlement) viewSettlement.style.display = 'flex';
       renderSettlementView();
     } else {
       if (tabSettlement) tabSettlement.classList.remove('active');
       if (tabOverview) tabOverview.classList.add('active');
       if (viewSettlement) viewSettlement.style.display = 'none';
-      if (viewOverview) viewOverview.style.display = 'block';
+      if (viewOverview) viewOverview.style.display = 'flex';
       renderAdminSummary();
       renderAdminTable();
     }

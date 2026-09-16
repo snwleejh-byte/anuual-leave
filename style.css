@@ -1040,8 +1040,9 @@ body.theme-dark .prev-cycle-banner {
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: 14px;
+  margin-top: 6px;
+  margin-bottom: 24px;
 }
 .search-input-wrap {
   position: relative;
@@ -1252,18 +1253,22 @@ body.admin-view-active .main-container {
   background: var(--bg-card-solid);
   border: 1px dashed var(--border-hover);
   border-radius: var(--radius-md);
-  padding: 16px 20px;
+  padding: 18px 22px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 14px;
+  gap: 16px;
+  margin-top: 4px;
+  margin-bottom: 24px;
 }
 .upload-desc {
-  font-size: 0.85rem;
+  font-size: 0.88rem;
   color: var(--text-secondary);
   flex: 1;
-  min-width: 280px;
+  min-width: 320px;
+  line-height: 1.6;
+  word-break: keep-all;
 }
 .upload-buttons {
   display: flex;
@@ -1281,6 +1286,7 @@ body.admin-view-active .main-container {
   display: inline-flex;
   align-items: center;
   transition: all var(--transition-fast);
+  white-space: nowrap;
 }
 .btn-file-upload:hover {
   background: var(--primary-light);
@@ -1294,8 +1300,9 @@ body.admin-view-active .main-container {
 /* Admin Tenure Tabs */
 .admin-tenure-tabs {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   flex-wrap: wrap;
+  margin-bottom: 20px;
 }
 
 .admin-tenure-tab {
@@ -1639,6 +1646,14 @@ body.admin-view-active .main-container {
 /* ==============================================================================
    Admin Main Navigation Tabs & Monthly Settlement Management Styles
    ============================================================================== */
+#adminOverviewView,
+#adminSettlementView {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+}
+
 .admin-main-tabs {
   display: flex;
   gap: 12px;
