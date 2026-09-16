@@ -1220,6 +1220,7 @@ body.admin-view-active .main-container {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 16px;
+  margin-bottom: 24px;
 }
 .admin-stat-card {
   background: var(--bg-card-alt);
@@ -1852,6 +1853,15 @@ body.admin-view-active .main-container {
 }
 
 /* Settlement Stat Cards */
+.settlement-stat-grid {
+  margin-bottom: 30px !important;
+}
+
+.settlement-filter-bar {
+  margin-top: 10px !important;
+  margin-bottom: 24px !important;
+}
+
 .settlement-stat-grid .stat-card-gold {
   background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(217, 119, 6, 0.06));
   border: 1.5px solid rgba(245, 158, 11, 0.45);
