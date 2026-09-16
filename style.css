@@ -1635,6 +1635,266 @@ body.admin-view-active .main-container {
   gap: 10px;
 }
 
+/* ==============================================================================
+   Admin Main Navigation Tabs & Monthly Settlement Management Styles
+   ============================================================================== */
+.admin-main-tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 2px;
+}
+
+.admin-main-tab {
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  padding: 12px 20px;
+  font-family: inherit;
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: -2px;
+  transition: all var(--transition-fast);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
+.admin-main-tab:hover {
+  color: var(--text-main);
+  background: var(--bg-hover);
+}
+
+.admin-main-tab.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  background: var(--primary-light);
+}
+
+.admin-main-tab.highlight-tab-gold.active {
+  color: #b45309;
+  border-bottom-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.badge-gold {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #fff;
+  font-size: 0.72rem;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.btn-file-upload-gold {
+  border-color: rgba(245, 158, 11, 0.5) !important;
+  color: #b45309 !important;
+}
+.btn-file-upload-gold:hover {
+  background: rgba(245, 158, 11, 0.15) !important;
+  border-color: #d97706 !important;
+  color: #92400e !important;
+}
+
+.btn-gold-action {
+  background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+  border-color: #d97706 !important;
+  color: #fff !important;
+  box-shadow: 0 2px 8px rgba(217, 119, 6, 0.35);
+}
+.btn-gold-action:hover {
+  background: linear-gradient(135deg, #d97706, #b45309) !important;
+  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.45);
+}
+
+/* Settlement Controls Bar */
+.settlement-controls-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  background: var(--bg-card-solid);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.settlement-selector-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.settlement-label {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.settlement-month-selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-card-alt);
+  border: 1.5px solid var(--primary);
+  border-radius: var(--radius-md);
+  padding: 2px 4px;
+}
+
+.btn-month-nav {
+  background: transparent;
+  border: none;
+  color: var(--primary);
+  font-size: 0.82rem;
+  padding: 6px 10px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.btn-month-nav:hover {
+  background: var(--primary-light);
+}
+
+.settlement-month-select {
+  background: transparent;
+  border: none;
+  color: var(--text-main);
+  font-size: 0.95rem;
+  font-weight: 700;
+  padding: 6px 8px;
+  outline: none;
+  cursor: pointer;
+}
+
+.settlement-cycle-badge {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #059669;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+.settlement-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Settlement Policy Banner */
+.settlement-policy-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(217, 119, 6, 0.03));
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  margin-bottom: 22px;
+}
+
+.settlement-policy-card .policy-icon {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.settlement-policy-card .policy-content {
+  flex: 1;
+}
+
+.policy-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.policy-title-row strong {
+  font-size: 0.98rem;
+  color: #b45309;
+}
+
+.formula-pill {
+  background: var(--bg-card-solid);
+  border: 1.5px solid #f59e0b;
+  color: #b45309;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.policy-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.86rem;
+  color: var(--text-main);
+  line-height: 1.65;
+}
+
+.policy-list li {
+  margin-bottom: 4px;
+}
+
+/* Settlement Stat Cards */
+.settlement-stat-grid .stat-card-gold {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(217, 119, 6, 0.06));
+  border: 1.5px solid rgba(245, 158, 11, 0.45);
+}
+
+.stat-val-amount {
+  color: #d97706 !important;
+  font-size: 1.65rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.5px;
+}
+
+/* Settlement Table Specifics */
+.settlement-table th, .settlement-table td {
+  padding: 10px 8px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.settlement-table td.cell-wage {
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.settlement-table td.cell-amount {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #d97706;
+  text-align: right;
+  padding-right: 14px;
+}
+
+.settlement-table tr.row-ineligible {
+  opacity: 0.6;
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.badge-calc-formula {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  font-family: monospace;
+}
+
 /* Print Stylesheet */
 @media print {
   .app-header, .theme-toggle, .btn-admin-nav, .filter-bar, .section-actions, .app-footer, .upload-panel, #logoutBtn {

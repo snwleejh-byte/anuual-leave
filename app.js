@@ -174,6 +174,8 @@
     renderDemoChips();
     populateAdminCycleYearOptions();
     populateAdminDeptOptions();
+    populateSettlementMonthSelect();
+    populateSettlementDeptOptions();
     checkSessionLogin();
   }
 
@@ -353,7 +355,7 @@
       submitLoginBtn.disabled = true;
       submitLoginBtn.innerHTML = '<span class="btn-text">구글 시트 실시간 조회 중...</span>';
       try {
-        const fetchUrl = `${gasApiUrl}?action=login&name=${encodeURIComponent(rawName)}&birth=${encodeURIComponent(rawBirth)}`;
+        const fetchUrl = `${gasApiUrl}?action=login&name=${encodeURIComponent(rawName)}&birth=${encodeURIComponent(rawBirth)}&nocache=1`;
         const resp = await fetch(fetchUrl, { method: 'GET', redirect: 'follow' });
 
         if (resp.status === 404) {
@@ -421,12 +423,12 @@
           return;
         }
 
-        const fetchUrl = `${gasApiUrl}?action=login&name=${encodeURIComponent(rawName)}&birth=${encodeURIComponent(rawBirth)}`;
+        const fetchUrl = `${gasApiUrl}?action=login&name=${encodeURIComponent(rawName)}&birth=${encodeURIComponent(rawBirth)}&nocache=1`;
         const resp = await fetch(fetchUrl, { method: 'GET', redirect: 'follow' });
         const result = await resp.json();
         if (result.success && result.employee) {
           loginSuccess(result.employee, rawBirth);
-          alert('최신 연차 데이터가 성공적으로 갱신되었습니다!');
+          alert('구글 시트 최신 연차 데이터가 성공적으로 갱신되었습니다!');
         } else {
           alert('새로고침 실패: ' + (result.message || '데이터 없음'));
         }
@@ -563,6 +565,23 @@
 
     renderEmployeeDashboard(emp);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // 구글 시트 연동 상태이고 과거 사용 내역이 비어있는 경우 백그라운드로 최신 개인 상세 내역 보강
+    const hasFullHistory = emp.all_usage && emp.all_usage.length > 0 && emp.leave_cycles && emp.leave_cycles.length > 1;
+    if (gasApiUrl && !hasFullHistory && emp.name) {
+      const bTarget = birth || emp.birth || (emp.birth_info ? (emp.birth_info.birth6 || emp.birth_info.birth8) : '') || '';
+      if (bTarget) {
+        fetch(`${gasApiUrl}?action=login&name=${encodeURIComponent(emp.name)}&birth=${encodeURIComponent(bTarget)}`, { method: 'GET', redirect: 'follow' })
+          .then(r => r.json())
+          .then(res => {
+            if (res && res.success && res.employee && currentEmp && currentEmp.emp_id === emp.emp_id) {
+              currentEmp = Object.assign(currentEmp, res.employee);
+              renderEmployeeDashboard(currentEmp);
+            }
+          })
+          .catch(() => {});
+      }
+    }
   }
 
   function checkSessionLogin() {
@@ -618,8 +637,25 @@
 
   function parseDateStr(s) {
     if (!s) return null;
-    const parts = s.replace(/-/g, '/').replace(/\./g, '/').split('/');
-    return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    if (s instanceof Date) {
+      return new Date(s.getFullYear(), s.getMonth(), s.getDate());
+    }
+    const str = String(s).trim();
+    if (/^\d{8}$/.test(str)) {
+      return new Date(parseInt(str.slice(0, 4), 10), parseInt(str.slice(4, 6), 10) - 1, parseInt(str.slice(6, 8), 10));
+    }
+    const clean = str.replace(/년|월|일/g, '/').replace(/[-.]/g, '/').replace(/\s+/g, '');
+    const parts = clean.split('/').filter(Boolean);
+    if (parts.length >= 3) {
+      let y = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10) - 1;
+      const d = parseInt(parts[2], 10);
+      if (y < 100) y += 2000;
+      if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+        return new Date(y, m, d);
+      }
+    }
+    return null;
   }
 
   function formatDateObj(d) {
@@ -697,7 +733,8 @@
       });
 
       let loopAnniv = lastAnniv;
-      for (let i = 1; i <= 3; i++) {
+      let prevIndex = 1;
+      while (loopAnniv > joinDate && prevIndex <= 40) {
         const prevAnniv = addYearsObj(loopAnniv, -1);
         const prevEnd = new Date(loopAnniv.getTime() - 24 * 60 * 60 * 1000);
 
@@ -705,9 +742,9 @@
           if (loopAnniv > joinDate) {
             const firstEnd = new Date(addYearsObj(joinDate, 1).getTime() - 24 * 60 * 60 * 1000);
             cycles.push({
-              cycle_id: `cycle_prev_${i}`,
+              cycle_id: `cycle_prev_${prevIndex}`,
               cycle_type: 'previous',
-              cycle_label: i === 1 ? '직전 연차 주기' : `${i}년 전 주기`,
+              cycle_label: prevIndex === 1 ? '직전 연차 주기' : `${prevIndex}년 전 주기`,
               period_name: `1년차 월차 (${formatDateObj(joinDate)} ~ ${formatDateObj(firstEnd)})`,
               is_current: false,
               is_under_1_year: true,
@@ -728,9 +765,9 @@
         if (compY === 0) {
           const firstEnd = new Date(addYearsObj(joinDate, 1).getTime() - 24 * 60 * 60 * 1000);
           cycles.push({
-            cycle_id: `cycle_prev_${i}`,
+            cycle_id: `cycle_prev_${prevIndex}`,
             cycle_type: 'previous',
-            cycle_label: i === 1 ? '직전 연차 주기' : `${i}년 전 주기`,
+            cycle_label: prevIndex === 1 ? '직전 연차 주기' : `${prevIndex}년 전 주기`,
             period_name: `1년차 월차 (${formatDateObj(joinDate)} ~ ${formatDateObj(firstEnd)})`,
             is_current: false,
             is_under_1_year: true,
@@ -749,9 +786,9 @@
           if (compY >= 3) {
             pGranted = Math.min(25, 15 + Math.floor((compY - 1) / 2));
           }
-          const label = i === 1 ? '직전 연차 주기' : `${i}년 전 주기`;
+          const label = prevIndex === 1 ? '직전 연차 주기' : `${prevIndex}년 전 주기`;
           cycles.push({
-            cycle_id: `cycle_prev_${i}`,
+            cycle_id: `cycle_prev_${prevIndex}`,
             cycle_type: 'previous',
             cycle_label: label,
             period_name: `${compY}년차 (${formatDateObj(prevAnniv)} ~ ${formatDateObj(prevEnd)})`,
@@ -767,6 +804,7 @@
             rule_description: `근속 ${compY}년차 법정 연차 (기본 15일 + 근속가산 ${pGranted - 15}일)`
           });
           loopAnniv = prevAnniv;
+          prevIndex++;
         }
       }
     }
@@ -1128,8 +1166,14 @@
     if (snwData && snwData.employees && snwData.employees.length > 0) {
       populateAdminCycleYearOptions();
       populateAdminDeptOptions();
-      renderAdminSummary();
-      renderAdminTable();
+      populateSettlementMonthSelect();
+      populateSettlementDeptOptions();
+      if (currentAdminTab === 'settlement') {
+        renderSettlementView();
+      } else {
+        renderAdminSummary();
+        renderAdminTable();
+      }
     }
 
     document.body.classList.add('admin-view-active');
@@ -1193,8 +1237,13 @@
         };
         populateAdminCycleYearOptions();
         populateAdminDeptOptions();
+        populateSettlementMonthSelect();
+        populateSettlementDeptOptions();
         renderAdminSummary();
         renderAdminTable();
+        if (currentAdminTab === 'settlement') {
+          renderSettlementView();
+        }
 
         if (forceRefresh) {
           alert('구글 시트 최신 데이터로 동기화가 완료되었습니다!');
@@ -1608,7 +1657,450 @@
     XLSX.writeFile(wb, `(주)에스앤더블류_전직원_연차현황_${snwData.ref_date.replace(/\//g,'')}.xlsx`);
   });
 
-  // 10. In-browser Excel Re-upload Support
+  // ==============================================================================
+  // 10. Monthly Leave Settlement Management (월별 연차수당 정산 관리 로직)
+  // ==============================================================================
+  let currentAdminTab = 'overview'; // 'overview' | 'settlement'
+  let currentSettlementYear = 2026;
+  let currentSettlementMonth = 9; // 1 ~ 12
+  let localWageMap = {}; // key: empId or cleanName, value: number
+  let currentSettlementList = [];
+
+  // Restore wage cache from sessionStorage if present
+  try {
+    const savedWageStr = sessionStorage.getItem('snw_wage_cache');
+    if (savedWageStr) {
+      localWageMap = JSON.parse(savedWageStr);
+    }
+  } catch (e) {}
+
+  function cleanName(s) {
+    return String(s || '').trim().replace(/\s+/g, '');
+  }
+
+  function getEmployeeWage(emp) {
+    if (!emp) return 0;
+    if (emp.hourly_wage && typeof emp.hourly_wage === 'number' && emp.hourly_wage > 0) {
+      return emp.hourly_wage;
+    }
+    const idKey = emp.emp_id ? String(emp.emp_id).trim() : '';
+    if (idKey && localWageMap[idKey]) return localWageMap[idKey];
+    const nameKey = cleanName(emp.name);
+    if (nameKey && localWageMap[nameKey]) return localWageMap[nameKey];
+    return 0;
+  }
+
+  function switchAdminTab(tab) {
+    currentAdminTab = tab;
+    const tabOverview = document.getElementById('btnAdminTabOverview');
+    const tabSettlement = document.getElementById('btnAdminTabSettlement');
+    const viewOverview = document.getElementById('adminOverviewView');
+    const viewSettlement = document.getElementById('adminSettlementView');
+
+    if (tab === 'settlement') {
+      if (tabOverview) tabOverview.classList.remove('active');
+      if (tabSettlement) tabSettlement.classList.add('active');
+      if (viewOverview) viewOverview.style.display = 'none';
+      if (viewSettlement) viewSettlement.style.display = 'block';
+      renderSettlementView();
+    } else {
+      if (tabSettlement) tabSettlement.classList.remove('active');
+      if (tabOverview) tabOverview.classList.add('active');
+      if (viewSettlement) viewSettlement.style.display = 'none';
+      if (viewOverview) viewOverview.style.display = 'block';
+      renderAdminSummary();
+      renderAdminTable();
+    }
+  }
+
+  function populateSettlementMonthSelect() {
+    const sel = document.getElementById('settlementMonthSelect');
+    if (!sel) return;
+
+    let refYear = 2026;
+    let refMonth = 9;
+    if (snwData && snwData.ref_date) {
+      const parts = snwData.ref_date.split('/');
+      if (parts.length >= 2) {
+        refYear = parseInt(parts[0], 10) || 2026;
+        refMonth = parseInt(parts[1], 10) || 9;
+      }
+    }
+    currentSettlementYear = refYear;
+    if (!currentSettlementMonth) currentSettlementMonth = refMonth;
+
+    let optionsHtml = '';
+    for (let m = 1; m <= 12; m++) {
+      const isCurr = (m === refMonth);
+      optionsHtml += `<option value="${m}" ${m === currentSettlementMonth ? 'selected' : ''}>${refYear}년 ${m}월 (${m}월 주기 / ${m}월 귀속)${isCurr ? ' ★기준월' : ''}</option>`;
+    }
+    sel.innerHTML = optionsHtml;
+    sel.value = String(currentSettlementMonth);
+  }
+
+  function populateSettlementDeptOptions() {
+    const deptSel = document.getElementById('settlementDeptFilter');
+    if (!deptSel || !snwData || !snwData.employees) return;
+    const depts = new Set(snwData.employees.map(e => e.dept).filter(Boolean));
+    const sortedDepts = Array.from(depts).sort();
+    const currVal = deptSel.value || 'all';
+
+    deptSel.innerHTML = '<option value="all">모든 부서 (전체)</option>' +
+      sortedDepts.map(d => `<option value="${d}">${d}</option>`).join('');
+    deptSel.value = currVal;
+  }
+
+  function evaluateEmployeeSettlement(emp, targetYear, targetMonth) {
+    if (!emp || !emp.join_date) {
+      return {
+        isTargetMonthCycle: false,
+        isEligible: false,
+        wage: 0,
+        amount: 0,
+        statusType: 'invalid',
+        statusText: '입사일자 없음',
+        formulaText: '-'
+      };
+    }
+
+    const wage = getEmployeeWage(emp);
+    const hasWage = (wage > 0);
+
+    const parts = emp.join_date.split('/');
+    const joinYear = parseInt(parts[0], 10);
+    const joinMonth = parseInt(parts[1], 10);
+
+    const isTargetMonthCycle = (joinMonth === targetMonth);
+    const completedYearsAtTarget = targetYear - joinYear;
+    const isNewHireUnder1 = (completedYearsAtTarget < 1); // 당월 신규입사자 (아직 1년 미달)
+    const isFirstYearRenewal = (completedYearsAtTarget === 1); // 만 1년 도래 월차 정산자
+
+    const remainingDays = (emp.leave_calc && typeof emp.leave_calc.remaining_days === 'number')
+      ? Math.max(0, emp.leave_calc.remaining_days)
+      : 0;
+
+    // 계산식: 통상시급 * 8 * 1.5 * 남은 연차개수 (원 단위 반올림)
+    const amount = hasWage ? Math.round(wage * 8 * 1.5 * remainingDays) : 0;
+    const formulaText = hasWage
+      ? `${wage.toLocaleString()}원 × 8h × 1.5 × ${remainingDays.toFixed(1)}일`
+      : '통상시급 미등록';
+
+    let isEligible = false;
+    let statusType = '';
+    let statusText = '';
+
+    if (!isTargetMonthCycle) {
+      statusType = 'other_cycle';
+      statusText = `${joinMonth}월 주기 (비대상)`;
+    } else if (isNewHireUnder1) {
+      // 규칙 1: 당월 신규입사자(1년 미만 입사자)는 정산 대상에서 자동 제외
+      statusType = 'new_hire';
+      statusText = '당월 신규입사자 (만 1년 미달 제외)';
+    } else if (!hasWage) {
+      // 규칙 2: 통상시급 시트에 없는 사원은 정산 비대상
+      statusType = 'no_wage';
+      statusText = '통상시급 미등록 (정산 비대상)';
+    } else {
+      isEligible = true;
+      statusType = isFirstYearRenewal ? 'first_year_done' : 'regular_renewal';
+      statusText = isFirstYearRenewal ? '만 1년 도래 월차 정산' : '정규 연차 주기 만료 정산';
+    }
+
+    return {
+      isTargetMonthCycle,
+      isEligible,
+      isNewHireUnder1,
+      hasWage,
+      wage,
+      remainingDays,
+      amount,
+      statusType,
+      statusText,
+      formulaText,
+      periodEnd: (emp.leave_calc && emp.leave_calc.period_end) || `${targetYear}/${String(targetMonth).padStart(2,'0')}/말일`
+    };
+  }
+
+  function renderSettlementView() {
+    if (!snwData || !snwData.employees) return;
+
+    populateSettlementMonthSelect();
+    populateSettlementDeptOptions();
+
+    const targetMonth = currentSettlementMonth;
+    const targetYear = currentSettlementYear;
+
+    // Badges & Buttons Update
+    const cycleBadge = document.getElementById('settlementCycleBadge');
+    if (cycleBadge) {
+      cycleBadge.textContent = `${targetMonth}월 귀속 급여 정산 (만료 당월 기준)`;
+    }
+    const exportBtnText = document.getElementById('btnExportSettlementText');
+    if (exportBtnText) {
+      exportBtnText.textContent = `${targetYear}년 ${targetMonth}월 귀속 연차정산 다운로드 (.xlsx)`;
+    }
+
+    // Evaluate all employees
+    const allEvaluated = snwData.employees.map(emp => ({
+      emp: emp,
+      eval: evaluateEmployeeSettlement(emp, targetYear, targetMonth)
+    }));
+
+    // Target Month Cycle Stats
+    const cycleEmps = allEvaluated.filter(x => x.eval.isTargetMonthCycle);
+    const eligibleEmps = cycleEmps.filter(x => x.eval.isEligible);
+    const newHireExcluded = cycleEmps.filter(x => x.eval.isNewHireUnder1).length;
+    const noWageExcluded = cycleEmps.filter(x => !x.eval.hasWage && !x.eval.isNewHireUnder1).length;
+
+    let totalDays = 0;
+    let totalAmount = 0;
+    eligibleEmps.forEach(x => {
+      totalDays += x.eval.remainingDays;
+      totalAmount += x.eval.amount;
+    });
+    const avgAmount = eligibleEmps.length > 0 ? Math.round(totalAmount / eligibleEmps.length) : 0;
+    const avgDays = eligibleEmps.length > 0 ? (totalDays / eligibleEmps.length).toFixed(1) : '0.0';
+
+    // Update KPI Cards
+    const countEl = document.getElementById('settlementEmpCount');
+    const countSub = document.getElementById('settlementEmpSub');
+    const daysEl = document.getElementById('settlementTotalDays');
+    const daysSub = document.getElementById('settlementDaysSub');
+    const amountEl = document.getElementById('settlementTotalAmount');
+    const avgAmountEl = document.getElementById('settlementAvgAmount');
+
+    if (countEl) countEl.textContent = `${eligibleEmps.length}명`;
+    if (countSub) countSub.textContent = `제외: 신규입사 ${newHireExcluded}명 / 시급미등록 ${noWageExcluded}명`;
+    if (daysEl) daysEl.textContent = `${totalDays.toFixed(1)}일`;
+    if (daysSub) daysSub.textContent = `인당 평균 ${avgDays}일`;
+    if (amountEl) amountEl.textContent = `₩ ${totalAmount.toLocaleString()}`;
+    if (avgAmountEl) avgAmountEl.textContent = `₩ ${avgAmount.toLocaleString()}`;
+
+    // Filter for Table
+    const filterMode = document.getElementById('settlementFilterMode') ? document.getElementById('settlementFilterMode').value : 'eligible';
+    const deptVal = document.getElementById('settlementDeptFilter') ? document.getElementById('settlementDeptFilter').value : 'all';
+    const searchVal = document.getElementById('settlementSearchInput') ? document.getElementById('settlementSearchInput').value.trim().toLowerCase() : '';
+    const sortVal = document.getElementById('settlementSortFilter') ? document.getElementById('settlementSortFilter').value : 'amount_desc';
+
+    let displayList = [];
+    if (filterMode === 'eligible') {
+      displayList = eligibleEmps.slice();
+    } else if (filterMode === 'all_cycle') {
+      displayList = cycleEmps.slice();
+    } else {
+      displayList = allEvaluated.slice();
+    }
+
+    if (deptVal !== 'all') {
+      displayList = displayList.filter(x => x.emp.dept === deptVal);
+    }
+
+    if (searchVal) {
+      displayList = displayList.filter(x => {
+        const text = `${x.emp.name} ${x.emp.emp_id} ${x.emp.dept} ${x.emp.position || ''}`.toLowerCase();
+        return text.includes(searchVal);
+      });
+    }
+
+    // Sort
+    displayList.sort((a, b) => {
+      if (sortVal === 'amount_desc') return b.eval.amount - a.eval.amount;
+      if (sortVal === 'amount_asc') return a.eval.amount - b.eval.amount;
+      if (sortVal === 'rem_desc') return b.eval.remainingDays - a.eval.remainingDays;
+      if (sortVal === 'wage_desc') return b.eval.wage - a.eval.wage;
+      if (sortVal === 'name_asc') return a.emp.name.localeCompare(b.emp.name, 'ko');
+      if (sortVal === 'join_asc') return a.emp.join_date.localeCompare(b.emp.join_date);
+      return 0;
+    });
+
+    currentSettlementList = displayList;
+
+    const tbody = document.getElementById('settlementTableBody');
+    if (!tbody) return;
+
+    if (displayList.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="13" style="text-align:center; padding: 40px; color: var(--text-secondary);">
+            <div style="font-size: 1.6rem; margin-bottom: 8px;">🔍</div>
+            <strong>${targetYear}년 ${targetMonth}월에 해당하는 정산 대상 사원이 없습니다.</strong>
+            <div style="font-size: 0.83rem; margin-top: 5px; color: var(--text-muted);">
+              정산 대상월을 변경하시거나 상단 [통상시급 업로드]를 통해 급여 정보를 확인해주세요.
+            </div>
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = displayList.map((item, idx) => {
+      const emp = item.emp;
+      const ev = item.eval;
+      const isEligible = ev.isEligible;
+      const rowClass = isEligible ? '' : 'row-ineligible';
+
+      let statusBadge = '';
+      if (isEligible) {
+        statusBadge = `<span class="badge badge-success" style="font-size:0.72rem; padding: 2px 6px;">정산대상</span>`;
+      } else if (ev.statusType === 'new_hire') {
+        statusBadge = `<span class="badge badge-warning" style="font-size:0.72rem; padding: 2px 6px;">신규입사(1년미만 제외)</span>`;
+      } else if (ev.statusType === 'no_wage') {
+        statusBadge = `<span class="badge badge-secondary" style="font-size:0.72rem; padding: 2px 6px;">시급미등록(비대상)</span>`;
+      } else {
+        statusBadge = `<span class="badge badge-secondary" style="font-size:0.72rem; padding: 2px 6px;">${ev.statusText}</span>`;
+      }
+
+      const wageText = ev.wage > 0 ? `₩ ${ev.wage.toLocaleString()}` : `<span class="text-muted" style="font-size:0.8rem;">미등록</span>`;
+      const amountText = isEligible
+        ? `<strong>₩ ${ev.amount.toLocaleString()}</strong>`
+        : `<span class="text-muted">-</span>`;
+
+      return `
+        <tr class="${rowClass}">
+          <td>${idx + 1}</td>
+          <td>${emp.emp_id}</td>
+          <td style="text-align:left;">
+            <strong>${emp.name}</strong>
+            <div style="margin-top: 2px;">${statusBadge}</div>
+          </td>
+          <td style="text-align:left;">${emp.dept}</td>
+          <td>${emp.position || emp.rank || '-'}</td>
+          <td>${emp.join_date}</td>
+          <td>${emp.service_text}</td>
+          <td><small class="text-muted">${ev.periodEnd}</small></td>
+          <td class="cell-wage">${wageText}</td>
+          <td><strong>${ev.remainingDays.toFixed(1)}일</strong></td>
+          <td><span class="badge-calc-formula">${isEligible ? ev.formulaText : ev.statusText}</span></td>
+          <td class="cell-amount">${amountText}</td>
+          <td>
+            <button type="button" class="btn-view-emp" data-id="${emp.emp_id}">조회</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    // Attach click listeners to view buttons
+    tbody.querySelectorAll('.btn-view-emp').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = e.target.getAttribute('data-id');
+        const emp = snwData.employees.find(x => x.emp_id === id);
+        if (emp) {
+          loginSuccess(emp, null, true, true);
+        }
+      });
+    });
+  }
+
+  function exportSettlementToExcel() {
+    if (!currentSettlementList || currentSettlementList.length === 0) {
+      alert('다운로드할 정산 데이터가 없습니다.');
+      return;
+    }
+
+    const rows = currentSettlementList.map((item, idx) => ({
+      '순번': idx + 1,
+      '사번': item.emp.emp_id,
+      '성명': item.emp.name,
+      '부서': item.emp.dept,
+      '직위': item.emp.position || item.emp.rank || '-',
+      '입사일자': item.emp.join_date,
+      '근속기간': item.emp.service_text,
+      '연차주기만료일': item.eval.periodEnd,
+      '통상시급(원)': item.eval.wage || 0,
+      '남은연차(일)': item.eval.remainingDays,
+      '산정기준': '통상시급 × 8시간 × 1.5 × 남은연차',
+      '정산지급액(원)': item.eval.amount,
+      '정산적격여부': item.eval.isEligible ? '정산대상' : '정산제외',
+      '제외및정산사유': item.eval.statusText
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, `${currentSettlementMonth}월귀속_연차정산`);
+    XLSX.writeFile(wb, `(주)에스앤더블류_${currentSettlementYear}년${String(currentSettlementMonth).padStart(2,'0')}월귀속_연차정산내역.xlsx`);
+  }
+
+  function handleWageFileUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      try {
+        const data = new Uint8Array(evt.target.result);
+        const wb = XLSX.read(data, { type: 'array' });
+        let targetSheetName = wb.SheetNames.find(n => n.includes('통상시급') || n.includes('시급') || n.includes('급여')) || wb.SheetNames[0];
+        const ws = wb.Sheets[targetSheetName];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+        if (!rows || rows.length < 2) {
+          alert('업로드한 파일에 유효한 데이터가 없습니다.');
+          return;
+        }
+
+        let headers = rows[0].map(h => String(h || '').trim().replace(/\s+/g, ''));
+        let nameCol = headers.findIndex(h => h.includes('성명') || h.includes('이름') || h.includes('사원명'));
+        let idCol = headers.findIndex(h => h.includes('사번'));
+        let wageCol = headers.findIndex(h => h.includes('통상시급') || h.includes('시급') || h.includes('통상임금') || h.includes('급여') || h.includes('금액'));
+
+        if (nameCol === -1 && wageCol === -1 && rows.length > 2) {
+          headers = rows[1].map(h => String(h || '').trim().replace(/\s+/g, ''));
+          nameCol = headers.findIndex(h => h.includes('성명') || h.includes('이름') || h.includes('사원명'));
+          idCol = headers.findIndex(h => h.includes('사번'));
+          wageCol = headers.findIndex(h => h.includes('통상시급') || h.includes('시급') || h.includes('통상임금') || h.includes('급여') || h.includes('금액'));
+        }
+
+        if (wageCol === -1) {
+          alert('파일에서 [통상시급] 또는 [시급] 열을 찾을 수 없습니다. 컬럼명을 확인해주세요.');
+          return;
+        }
+
+        let loadedCount = 0;
+        const startRow = (rows[0].some(h => String(h).includes('시급'))) ? 1 : 2;
+        for (let r = startRow; r < rows.length; r++) {
+          const row = rows[r];
+          if (!row) continue;
+          const rawName = nameCol !== -1 ? cleanName(row[nameCol]) : '';
+          const rawId = idCol !== -1 ? String(row[idCol] || '').trim().replace(/[^0-9a-zA-Z]/g, '') : '';
+          const rawWage = row[wageCol];
+          let wageNum = 0;
+          if (typeof rawWage === 'number') wageNum = rawWage;
+          else if (rawWage) wageNum = parseFloat(String(rawWage).replace(/[^0-9.]/g, '')) || 0;
+
+          if (wageNum > 0) {
+            if (rawId) localWageMap[rawId] = wageNum;
+            if (rawName) localWageMap[rawName] = wageNum;
+            loadedCount++;
+          }
+        }
+
+        sessionStorage.setItem('snw_wage_cache', JSON.stringify(localWageMap));
+
+        // Update memory
+        if (snwData && snwData.employees) {
+          snwData.employees.forEach(emp => {
+            const w = getEmployeeWage(emp);
+            if (w > 0) {
+              emp.hourly_wage = w;
+              emp.has_wage = true;
+            }
+          });
+        }
+
+        alert(`[통상시급 동기화 성공]\n총 ${loadedCount}명의 통상시급 데이터가 성공적으로 반영되었습니다!`);
+        if (currentAdminTab === 'settlement') {
+          renderSettlementView();
+        } else {
+          renderAdminSummary();
+          renderAdminTable();
+        }
+      } catch (err) {
+        alert('엑셀 파일 분석 중 오류가 발생했습니다: ' + err.message);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  // 11. Event Listeners Setup
   function setupEventListeners() {
     // 뒤로가기 버튼 클릭 이벤트 연결
     if (btnHeaderBack) {
@@ -1617,6 +2109,69 @@
     if (btnDashBack) {
       btnDashBack.addEventListener('click', handleGoBack);
     }
+
+    // Admin Main Navigation Tabs
+    const btnTabOverview = document.getElementById('btnAdminTabOverview');
+    const btnTabSettlement = document.getElementById('btnAdminTabSettlement');
+    if (btnTabOverview) {
+      btnTabOverview.addEventListener('click', () => switchAdminTab('overview'));
+    }
+    if (btnTabSettlement) {
+      btnTabSettlement.addEventListener('click', () => switchAdminTab('settlement'));
+    }
+
+    // Settlement Month Selector
+    const monthSelect = document.getElementById('settlementMonthSelect');
+    if (monthSelect) {
+      monthSelect.addEventListener('change', (e) => {
+        currentSettlementMonth = parseInt(e.target.value, 10);
+        renderSettlementView();
+      });
+    }
+
+    const btnPrevMonth = document.getElementById('btnSettlementPrevMonth');
+    if (btnPrevMonth) {
+      btnPrevMonth.addEventListener('click', () => {
+        currentSettlementMonth = (currentSettlementMonth > 1) ? currentSettlementMonth - 1 : 12;
+        if (monthSelect) monthSelect.value = String(currentSettlementMonth);
+        renderSettlementView();
+      });
+    }
+
+    const btnNextMonth = document.getElementById('btnSettlementNextMonth');
+    if (btnNextMonth) {
+      btnNextMonth.addEventListener('click', () => {
+        currentSettlementMonth = (currentSettlementMonth < 12) ? currentSettlementMonth + 1 : 1;
+        if (monthSelect) monthSelect.value = String(currentSettlementMonth);
+        renderSettlementView();
+      });
+    }
+
+    // Settlement Filter Controls
+    const setFilterMode = document.getElementById('settlementFilterMode');
+    if (setFilterMode) setFilterMode.addEventListener('change', renderSettlementView);
+
+    const setDeptFilter = document.getElementById('settlementDeptFilter');
+    if (setDeptFilter) setDeptFilter.addEventListener('change', renderSettlementView);
+
+    const setSortFilter = document.getElementById('settlementSortFilter');
+    if (setSortFilter) setSortFilter.addEventListener('change', renderSettlementView);
+
+    const setSearchInput = document.getElementById('settlementSearchInput');
+    if (setSearchInput) setSearchInput.addEventListener('input', renderSettlementView);
+
+    // Export Settlement to Excel
+    const btnExpSettlement = document.getElementById('btnExportSettlementExcel');
+    if (btnExpSettlement) {
+      btnExpSettlement.addEventListener('click', exportSettlementToExcel);
+    }
+
+    // Wage Excel Uploads
+    const wageUp1 = document.getElementById('uploadWageInput');
+    if (wageUp1) wageUp1.addEventListener('change', handleWageFileUpload);
+
+    const wageUp2 = document.getElementById('uploadWageInputSettlement');
+    if (wageUp2) wageUp2.addEventListener('change', handleWageFileUpload);
 
     // 브라우저 뒤로가기 / 앞으로가기 키 및 모바일 뒤로가기 제스처 완벽 지원
     window.addEventListener('popstate', (e) => {

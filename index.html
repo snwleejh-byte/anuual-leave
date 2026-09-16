@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=2.6">
+  <link rel="stylesheet" href="style.css?v=3.0">
   <!-- SheetJS for client-side Excel export and upload handling -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
@@ -380,129 +380,272 @@
         </div>
       </div>
 
-      <!-- Admin Summary Statistics -->
-      <div class="admin-stat-grid">
-        <div class="admin-stat-card">
-          <span class="stat-label">총 재직 사원</span>
-          <span class="stat-val" id="adminTotalEmp">142명</span>
-          <span class="stat-sub">1년 이상: 117명 / 1년 미만: 25명</span>
-        </div>
-        <div class="admin-stat-card">
-          <span class="stat-label">총 부여 연차</span>
-          <span class="stat-val text-primary" id="adminTotalGranted">2,314.0일</span>
-          <span class="stat-sub">인당 평균 16.3일</span>
-        </div>
-        <div class="admin-stat-card">
-          <span class="stat-label">총 사용 연차</span>
-          <span class="stat-val text-danger" id="adminTotalUsed">473.5일</span>
-          <span class="stat-sub">평균 사용률 20.5%</span>
-        </div>
-        <div class="admin-stat-card">
-          <span class="stat-label">총 잔여 연차</span>
-          <span class="stat-val text-success" id="adminTotalRemaining">1,840.5일</span>
-          <span class="stat-sub">미사용 잔여율 79.5%</span>
-        </div>
-      </div>
-
-      <!-- Excel Re-upload & Synchronization Panel -->
-      <div class="upload-panel">
-        <div class="upload-desc">
-          <strong>📁 데이터 최신화 (엑셀 업데이트):</strong> 새로운 사원명부 또는 연차사용내역 엑셀 파일을 업로드하면 브라우저에서 즉시 재계산 및 반영됩니다.
-        </div>
-        <div class="upload-buttons">
-          <label class="btn-file-upload">
-            <span>사원명부 업로드 (.xlsx)</span>
-            <input type="file" id="uploadRosterInput" accept=".xlsx, .xls">
-          </label>
-          <label class="btn-file-upload">
-            <span>연차사용내역 업로드 (.xlsx)</span>
-            <input type="file" id="uploadUsageInput" accept=".xlsx, .xls">
-          </label>
-        </div>
-      </div>
-
-      <!-- Admin Tenure Quick Tabs (전체 / 1년 미만 입사자 / 1년 이상자) -->
-      <div class="admin-tenure-tabs">
-        <button type="button" class="admin-tenure-tab active" data-tenure="all" id="tabTenureAll">
-          <span>👥 전체 사원</span>
-          <span class="tab-count" id="countTenureAll">0</span>
+      <!-- Admin View Main Navigation Tabs -->
+      <div class="admin-main-tabs">
+        <button type="button" class="admin-main-tab active" id="btnAdminTabOverview">
+          <span>📊</span> 전 사원 연차 현황
         </button>
-        <button type="button" class="admin-tenure-tab highlight-tab" data-tenure="under1" id="tabTenureUnder1">
-          <span>👶 1년 미만 입사자 (월차 대상)</span>
-          <span class="tab-count" id="countTenureUnder1">0</span>
-        </button>
-        <button type="button" class="admin-tenure-tab" data-tenure="over1" id="tabTenureOver1">
-          <span>💼 1년 이상 정규 연차</span>
-          <span class="tab-count" id="countTenureOver1">0</span>
+        <button type="button" class="admin-main-tab highlight-tab-gold" id="btnAdminTabSettlement">
+          <span>💰</span> 월별 연차수당 정산 관리
+          <span class="badge-gold">정산 엔진</span>
         </button>
       </div>
 
-      <!-- Under 1 Year Law Notice Banner (1년 미만 탭 선택 시 노출) -->
-      <div class="under1-notice-card" id="under1NoticeCard" style="display: none;">
-        <div class="notice-icon">⚖️</div>
-        <div class="notice-content">
-          <h4>근로기준법 제60조 제2항 (1년 미만 입사자의 월차 휴가 안내)</h4>
-          <p>
-            1년 미만 신규 입사자는 입사일 기준 <strong>1개월 개근 시 1일씩 발생(최대 11일)</strong>하며, <strong>입사일로부터 1년이 되는 날 모두 소멸</strong>됩니다.<br>
-            <span class="text-warning">※ <strong>결근 관리</strong>: 한 달 산정 기간 중 결근(무단결근·무급결근)이 1회라도 발생한 달은 해당 월의 월차(1일)가 발생하지 않습니다.</span>
-          </p>
+      <!-- 3-A. Overview View (전 사원 현황) -->
+      <div id="adminOverviewView">
+        <!-- Admin Summary Statistics -->
+        <div class="admin-stat-grid">
+          <div class="admin-stat-card">
+            <span class="stat-label">총 재직 사원</span>
+            <span class="stat-val" id="adminTotalEmp">142명</span>
+            <span class="stat-sub">1년 이상: 117명 / 1년 미만: 25명</span>
+          </div>
+          <div class="admin-stat-card">
+            <span class="stat-label">총 부여 연차</span>
+            <span class="stat-val text-primary" id="adminTotalGranted">2,314.0일</span>
+            <span class="stat-sub">인당 평균 16.3일</span>
+          </div>
+          <div class="admin-stat-card">
+            <span class="stat-label">총 사용 연차</span>
+            <span class="stat-val text-danger" id="adminTotalUsed">473.5일</span>
+            <span class="stat-sub">평균 사용률 20.5%</span>
+          </div>
+          <div class="admin-stat-card">
+            <span class="stat-label">총 잔여 연차</span>
+            <span class="stat-val text-success" id="adminTotalRemaining">1,840.5일</span>
+            <span class="stat-sub">미사용 잔여율 79.5%</span>
+          </div>
+        </div>
+
+        <!-- Excel Re-upload & Synchronization Panel -->
+        <div class="upload-panel">
+          <div class="upload-desc">
+            <strong>📁 데이터 최신화 (엑셀 업데이트):</strong> 새로운 사원명부, 연차사용내역, 통상시급 엑셀 파일을 업로드하면 브라우저에서 즉시 재계산 및 반영됩니다.
+          </div>
+          <div class="upload-buttons">
+            <label class="btn-file-upload">
+              <span>사원명부 업로드 (.xlsx)</span>
+              <input type="file" id="uploadRosterInput" accept=".xlsx, .xls">
+            </label>
+            <label class="btn-file-upload">
+              <span>연차사용내역 업로드 (.xlsx)</span>
+              <input type="file" id="uploadUsageInput" accept=".xlsx, .xls">
+            </label>
+            <label class="btn-file-upload btn-file-upload-gold">
+              <span>통상시급 업로드 (.xlsx)</span>
+              <input type="file" id="uploadWageInput" accept=".xlsx, .xls">
+            </label>
+          </div>
+        </div>
+
+        <!-- Admin Tenure Quick Tabs (전체 / 1년 미만 입사자 / 1년 이상자) -->
+        <div class="admin-tenure-tabs">
+          <button type="button" class="admin-tenure-tab active" data-tenure="all" id="tabTenureAll">
+            <span>👥 전체 사원</span>
+            <span class="tab-count" id="countTenureAll">0</span>
+          </button>
+          <button type="button" class="admin-tenure-tab highlight-tab" data-tenure="under1" id="tabTenureUnder1">
+            <span>👶 1년 미만 입사자 (월차 대상)</span>
+            <span class="tab-count" id="countTenureUnder1">0</span>
+          </button>
+          <button type="button" class="admin-tenure-tab" data-tenure="over1" id="tabTenureOver1">
+            <span>💼 1년 이상 정규 연차</span>
+            <span class="tab-count" id="countTenureOver1">0</span>
+          </button>
+        </div>
+
+        <!-- Under 1 Year Law Notice Banner (1년 미만 탭 선택 시 노출) -->
+        <div class="under1-notice-card" id="under1NoticeCard" style="display: none;">
+          <div class="notice-icon">⚖️</div>
+          <div class="notice-content">
+            <h4>근로기준법 제60조 제2항 (1년 미만 입사자의 월차 휴가 안내)</h4>
+            <p>
+              1년 미만 신규 입사자는 입사일 기준 <strong>1개월 개근 시 1일씩 발생(최대 11일)</strong>하며, <strong>입사일로부터 1년이 되는 날 모두 소멸</strong>됩니다.<br>
+              <span class="text-warning">※ <strong>결근 관리</strong>: 한 달 산정 기간 중 결근(무단결근·무급결근)이 1회라도 발생한 달은 해당 월의 월차(1일)가 발생하지 않습니다.</span>
+            </p>
+          </div>
+        </div>
+
+        <!-- Filter and Search Bar -->
+        <div class="admin-filter-bar">
+          <div class="search-input-wrap">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="adminSearchInput" placeholder="이름, 사번, 부서, 직급 검색...">
+          </div>
+          <div class="filter-options">
+            <select id="adminCycleYearFilter" title="연차주기 시작연도 필터">
+              <option value="all">📅 연차주기: 전체 연도</option>
+              <option value="2026">📅 2026년 시작 연차주기 (2026년 리셋)</option>
+              <option value="2025">📅 2025년 시작 연차주기 (2025년 리셋)</option>
+            </select>
+            <select id="adminTenureFilter">
+              <option value="all">모든 근속 구분 (전체)</option>
+              <option value="under1">👶 1년 미만 입사자만 보기</option>
+              <option value="over1">💼 1년 이상 일반 직원만 보기</option>
+            </select>
+            <select id="adminDeptFilter">
+              <option value="all">모든 부서 (전체)</option>
+            </select>
+            <select id="adminSortFilter">
+              <option value="name_asc">이름 가나다순</option>
+              <option value="rem_asc">남은 연차 적은 순 (소진 임박)</option>
+              <option value="rem_desc">남은 연차 많은 순</option>
+              <option value="rate_desc">연차 사용률 높은 순</option>
+              <option value="join_desc">최근 입사일순</option>
+              <option value="join_asc">근속연수 높은순</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- All Employees Table -->
+        <div class="table-responsive admin-table-container">
+          <table class="data-table admin-table" id="adminTable">
+            <thead>
+              <tr>
+                <th>사번</th>
+                <th>성명</th>
+                <th>부서</th>
+                <th>직위</th>
+                <th>입사일자</th>
+                <th>근속기간</th>
+                <th>연차주기</th>
+                <th>총 발생</th>
+                <th>사용 일수</th>
+                <th>남은 일수</th>
+                <th>사용률</th>
+                <th>조회</th>
+              </tr>
+            </thead>
+            <tbody id="adminTableBody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
         </div>
       </div>
 
-      <!-- Filter and Search Bar -->
-      <div class="admin-filter-bar">
-        <div class="search-input-wrap">
-          <span class="search-icon">🔍</span>
-          <input type="text" id="adminSearchInput" placeholder="이름, 사번, 부서, 직급 검색...">
+      <!-- 3-B. Settlement View (월별 연차수당 정산 관리) -->
+      <div id="adminSettlementView" style="display: none;">
+        <!-- Settlement Month Controls & Actions -->
+        <div class="settlement-controls-bar">
+          <div class="settlement-selector-group">
+            <span class="settlement-label">📅 정산 대상월:</span>
+            <div class="settlement-month-selector">
+              <button type="button" class="btn-month-nav" id="btnSettlementPrevMonth" title="이전달">◀</button>
+              <select id="settlementMonthSelect" class="settlement-month-select">
+                <!-- Dynamically populated -->
+              </select>
+              <button type="button" class="btn-month-nav" id="btnSettlementNextMonth" title="다음달">▶</button>
+            </div>
+            <span class="settlement-cycle-badge" id="settlementCycleBadge">9월 귀속 급여 정산</span>
+          </div>
+          <div class="settlement-actions-group">
+            <label class="btn-file-upload btn-sm btn-file-upload-gold" title="통상시급 엑셀 파일 수동 업로드">
+              <span>📁 통상시급 업로드</span>
+              <input type="file" id="uploadWageInputSettlement" accept=".xlsx, .xls">
+            </label>
+            <button type="button" class="btn-primary btn-sm btn-gold-action" id="btnExportSettlementExcel">
+              <span>📥</span> <span id="btnExportSettlementText">연차정산 내역 다운로드 (.xlsx)</span>
+            </button>
+          </div>
         </div>
-        <div class="filter-options">
-          <select id="adminCycleYearFilter" title="연차주기 시작연도 필터">
-            <option value="all">📅 연차주기: 전체 연도</option>
-            <option value="2026">📅 2026년 시작 연차주기 (2026년 리셋)</option>
-            <option value="2025">📅 2025년 시작 연차주기 (2025년 리셋)</option>
-          </select>
-          <select id="adminTenureFilter">
-            <option value="all">모든 근속 구분 (전체)</option>
-            <option value="under1">👶 1년 미만 입사자만 보기</option>
-            <option value="over1">💼 1년 이상 일반 직원만 보기</option>
-          </select>
-          <select id="adminDeptFilter">
-            <option value="all">모든 부서 (전체)</option>
-          </select>
-          <select id="adminSortFilter">
-            <option value="name_asc">이름 가나다순</option>
-            <option value="rem_asc">남은 연차 적은 순 (소진 임박)</option>
-            <option value="rem_desc">남은 연차 많은 순</option>
-            <option value="rate_desc">연차 사용률 높은 순</option>
-            <option value="join_desc">최근 입사일순</option>
-            <option value="join_asc">근속연수 높은순</option>
-          </select>
-        </div>
-      </div>
 
-      <!-- All Employees Table -->
-      <div class="table-responsive admin-table-container">
-        <table class="data-table admin-table" id="adminTable">
-          <thead>
-            <tr>
-              <th>사번</th>
-              <th>성명</th>
-              <th>부서</th>
-              <th>직위</th>
-              <th>입사일자</th>
-              <th>근속기간</th>
-              <th>연차주기</th>
-              <th>총 발생</th>
-              <th>사용 일수</th>
-              <th>남은 일수</th>
-              <th>사용률</th>
-              <th>조회</th>
-            </tr>
-          </thead>
-          <tbody id="adminTableBody">
-            <!-- Dynamically populated -->
-          </tbody>
-        </table>
+        <!-- Settlement Policy Banner -->
+        <div class="settlement-policy-card">
+          <div class="policy-icon">💡</div>
+          <div class="policy-content">
+            <div class="policy-title-row">
+              <strong>에스앤더블류 연차정산 규정 및 자동 필터링 기준</strong>
+              <span class="formula-pill">계산식: 통상시급 × 8시간 × 1.5 × 잔여 연차일수</span>
+            </div>
+            <ul class="policy-list">
+              <li><strong>만료 당월 기준</strong>: 각 사원의 연차 주기 만료월(입사월)에 해당하는 인원을 당월 귀속 정산 대상자로 집계합니다.</li>
+              <li><strong>당월 신규입사자 및 1년 미만자 제외</strong>: 아직 1년이 경과하지 않은 입사자는 정산 대상에서 <strong>자동 제외</strong>됩니다. (※ 입사 만 1년이 도래하는 월에 정산 대상에 정상 포함)</li>
+              <li><strong>통상시급 미등록자 제외</strong>: <code>[통상시급]</code> 시트에 등록되지 않은 사원은 연차수당 정산 비대상자로 분류되어 집계에서 <strong>자동 제외</strong>됩니다.</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Settlement Summary Statistics Grid -->
+        <div class="admin-stat-grid settlement-stat-grid">
+          <div class="admin-stat-card">
+            <span class="stat-label">이달의 정산 대상</span>
+            <span class="stat-val text-primary" id="settlementEmpCount">0명</span>
+            <span class="stat-sub" id="settlementEmpSub">신규입사/시급미등록자 제외</span>
+          </div>
+          <div class="admin-stat-card">
+            <span class="stat-label">정산 대상 총 잔여 연차</span>
+            <span class="stat-val text-warning" id="settlementTotalDays">0.0일</span>
+            <span class="stat-sub" id="settlementDaysSub">인당 평균 0.0일</span>
+          </div>
+          <div class="admin-stat-card stat-card-gold highlighted">
+            <span class="stat-label">총 정산 예상 지급액</span>
+            <span class="stat-val stat-val-amount" id="settlementTotalAmount">₩ 0</span>
+            <span class="stat-sub">통상시급 × 8 × 1.5 × 잔여연차</span>
+          </div>
+          <div class="admin-stat-card">
+            <span class="stat-label">인당 평균 정산 지급액</span>
+            <span class="stat-val text-success" id="settlementAvgAmount">₩ 0</span>
+            <span class="stat-sub">정산 대상 사원 평균</span>
+          </div>
+        </div>
+
+        <!-- Settlement Filter Bar -->
+        <div class="admin-filter-bar settlement-filter-bar">
+          <div class="search-input-wrap">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="settlementSearchInput" placeholder="정산 대상자 성명, 사번, 부서 검색...">
+          </div>
+          <div class="filter-options">
+            <select id="settlementFilterMode">
+              <option value="eligible">✅ 정산 대상자만 보기 (기본)</option>
+              <option value="all_cycle">👥 해당 월 주기 전체 (미등록/1년미만 포함)</option>
+              <option value="all_emps">🌐 전 사원 통상시급 매칭 현황</option>
+            </select>
+            <select id="settlementDeptFilter">
+              <option value="all">모든 부서 (전체)</option>
+            </select>
+            <select id="settlementSortFilter">
+              <option value="amount_desc">정산금액 높은순</option>
+              <option value="amount_asc">정산금액 낮은순</option>
+              <option value="rem_desc">남은 연차 많은순</option>
+              <option value="wage_desc">통상시급 높은순</option>
+              <option value="name_asc">이름 가나다순</option>
+              <option value="join_asc">입사일 빠른순</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Settlement Employees Table -->
+        <div class="table-responsive admin-table-container">
+          <table class="data-table admin-table settlement-table" id="settlementTable">
+            <thead>
+              <tr>
+                <th>순번</th>
+                <th>사번</th>
+                <th>성명</th>
+                <th>부서</th>
+                <th>직위</th>
+                <th>입사일자</th>
+                <th>근속</th>
+                <th>연차주기 만료일</th>
+                <th>통상시급</th>
+                <th>남은 연차</th>
+                <th>산정 기준</th>
+                <th>정산 지급액</th>
+                <th>상세</th>
+              </tr>
+            </thead>
+            <tbody id="settlementTableBody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Footnote -->
+        <div class="table-footer-note">
+          <span>* 정산 계산식: <code>통상시급 × 8시간 × 1.5 × 남은 연차개수</code> (원 단위 반올림 처리)</span>
+          <span>* 통상시급 시트에 등록되지 않은 직원은 연차수당 정산 비대상으로 간주되어 목록에서 자동으로 제외됩니다.</span>
+        </div>
       </div>
 
     </section>
@@ -547,7 +690,7 @@
   </footer>
 
   <!-- Scripts -->
-  <script src="data.js?v=2.6"></script>
-  <script src="app.js?v=2.7"></script>
+  <script src="data.js?v=3.0"></script>
+  <script src="app.js?v=3.0"></script>
 </body>
 </html>
