@@ -1040,8 +1040,8 @@ body.theme-dark .prev-cycle-banner {
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 12px;
-  margin: 0 0 10px 0;
+  gap: 8px;
+  margin: 0;
 }
 .search-input-wrap {
   position: relative;
@@ -1218,18 +1218,18 @@ body.admin-view-active .main-container {
 
 .admin-stat-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px;
   margin: 0;
 }
 .admin-stat-card {
   background: var(--bg-card-alt);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  padding: 18px;
+  padding: 12px 15px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 .admin-stat-card .stat-label {
   font-size: 0.82rem;
@@ -1252,12 +1252,12 @@ body.admin-view-active .main-container {
   background: var(--bg-card-solid);
   border: 1px dashed var(--border-hover);
   border-radius: var(--radius-md);
-  padding: 14px 18px;
+  padding: 10px 15px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 10px;
   margin: 0;
 }
 .upload-desc {
@@ -1298,7 +1298,7 @@ body.admin-view-active .main-container {
 /* Admin Tenure Tabs */
 .admin-tenure-tabs {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
   margin: 0;
 }
@@ -1306,14 +1306,14 @@ body.admin-view-active .main-container {
 .admin-tenure-tab {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 18px;
+  gap: 6px;
+  padding: 6px 14px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
   background: var(--bg-surface);
   color: var(--text-secondary);
   font-family: inherit;
-  font-size: 0.92rem;
+  font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
   transition: all var(--transition-fast);
@@ -1648,14 +1648,14 @@ body.admin-view-active .main-container {
 #adminSettlementView {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 8px;
   width: 100%;
 }
 
 .admin-main-tabs {
   display: flex;
-  gap: 12px;
-  margin-bottom: 24px;
+  gap: 10px;
+  margin-bottom: 10px;
   border-bottom: 2px solid var(--border-color);
   padding-bottom: 2px;
 }
@@ -1732,11 +1732,11 @@ body.admin-view-active .main-container {
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 14px;
+  gap: 10px;
   background: var(--bg-card-solid);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  padding: 14px 18px;
+  padding: 10px 15px;
   margin: 0;
   box-shadow: var(--shadow-sm);
 }
@@ -1811,11 +1811,11 @@ body.admin-view-active .main-container {
 .settlement-policy-card {
   display: flex;
   align-items: flex-start;
-  gap: 14px;
+  gap: 10px;
   background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(217, 119, 6, 0.03));
   border: 1px solid rgba(245, 158, 11, 0.35);
   border-radius: var(--radius-md);
-  padding: 14px 18px;
+  padding: 10px 15px;
   margin: 0;
 }
 
