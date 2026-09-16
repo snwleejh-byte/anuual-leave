@@ -1759,7 +1759,14 @@
         amount: 0,
         statusType: 'invalid',
         statusText: '입사일자 없음',
-        formulaText: '-'
+        formulaText: '-',
+        periodStart: '',
+        periodEnd: '',
+        periodText: '-',
+        periodName: '',
+        cycleIndex: 0,
+        cycleTotalGranted: 0,
+        cycleUsedDays: 0
       };
     }
 
@@ -1775,9 +1782,70 @@
     const isNewHireUnder1 = (completedYearsAtTarget < 1); // 당월 신규입사자 (아직 1년 미달)
     const isFirstYearRenewal = (completedYearsAtTarget === 1); // 만 1년 도래 월차 정산자
 
-    const remainingDays = (emp.leave_calc && typeof emp.leave_calc.remaining_days === 'number')
-      ? Math.max(0, emp.leave_calc.remaining_days)
-      : 0;
+    // 직원의 전체 연차 주기 계산
+    const cycles = ensureEmployeeCycles(emp);
+
+    // 정산 대상 주기 탐색:
+    // 해당 정산년도(targetYear), 정산월(targetMonth)에 만료/갱신된 실제 주기를 찾음
+    // 1) next_renewal_date의 연도와 월이 targetYear, targetMonth인 주기 (입사일 당월 갱신 기준)
+    // 2) period_end의 연도와 월이 targetYear, targetMonth인 주기 (말일 만료 기준 등)
+    let targetCycle = null;
+    let targetCycleIndex = 0;
+
+    if (cycles && cycles.length > 0) {
+      const foundIdx = cycles.findIndex(c => {
+        if (!c.next_renewal_date) return false;
+        const p = c.next_renewal_date.split('/');
+        return parseInt(p[0], 10) === targetYear && parseInt(p[1], 10) === targetMonth;
+      });
+
+      if (foundIdx !== -1) {
+        targetCycle = cycles[foundIdx];
+        targetCycleIndex = foundIdx;
+      } else {
+        const foundEndIdx = cycles.findIndex(c => {
+          if (!c.period_end) return false;
+          const p = c.period_end.split('/');
+          return parseInt(p[0], 10) === targetYear && parseInt(p[1], 10) === targetMonth;
+        });
+        if (foundEndIdx !== -1) {
+          targetCycle = cycles[foundEndIdx];
+          targetCycleIndex = foundEndIdx;
+        }
+      }
+    }
+
+    // 만약 매칭되는 과거/도래 주기가 없고 대상월 주기인 경우 기본 첫 주기(현재 주기) 사용
+    if (!targetCycle && isTargetMonthCycle && cycles && cycles.length > 0) {
+      targetCycle = cycles[0];
+      targetCycleIndex = 0;
+    }
+
+    // 남은 연차 및 대상 주기 세부 정보 산출
+    let remainingDays = 0;
+    let periodStart = '';
+    let periodEnd = '';
+    let periodName = '';
+    let cycleTotalGranted = 0;
+    let cycleUsedDays = 0;
+
+    if (targetCycle) {
+      remainingDays = Math.max(0, targetCycle.remaining_days !== undefined ? targetCycle.remaining_days : 0);
+      periodStart = targetCycle.period_start || '';
+      periodEnd = targetCycle.period_end || '';
+      periodName = targetCycle.period_name || '';
+      cycleTotalGranted = targetCycle.total_granted || 0;
+      cycleUsedDays = targetCycle.used_days || 0;
+    } else if (emp.leave_calc) {
+      remainingDays = Math.max(0, emp.leave_calc.remaining_days || 0);
+      periodStart = emp.leave_calc.period_start || '';
+      periodEnd = emp.leave_calc.period_end || '';
+      periodName = emp.leave_calc.is_under_1_year ? '1년차 월차' : `${emp.service_years || ''}년차`;
+      cycleTotalGranted = emp.leave_calc.total_granted || 0;
+      cycleUsedDays = emp.leave_calc.used_days || 0;
+    }
+
+    const periodText = (periodStart && periodEnd) ? `${periodStart} ~ ${periodEnd}` : (periodEnd || '-');
 
     // 계산식: 통상시급 * 8 * 1.5 * 남은 연차개수 (원 단위 반올림)
     const amount = hasWage ? Math.round(wage * 8 * 1.5 * remainingDays) : 0;
@@ -1817,7 +1885,13 @@
       statusType,
       statusText,
       formulaText,
-      periodEnd: (emp.leave_calc && emp.leave_calc.period_end) || `${targetYear}/${String(targetMonth).padStart(2,'0')}/말일`
+      periodStart,
+      periodEnd,
+      periodText,
+      periodName,
+      cycleIndex: targetCycleIndex,
+      cycleTotalGranted,
+      cycleUsedDays
     };
   }
 
@@ -1966,13 +2040,16 @@
           <td>${emp.position || emp.rank || '-'}</td>
           <td>${emp.join_date}</td>
           <td>${emp.service_text}</td>
-          <td><small class="text-muted">${ev.periodEnd}</small></td>
+          <td>
+            <div style="font-weight: 500; font-size: 0.8rem; color: var(--text-primary); white-space: nowrap;">${ev.periodText}</div>
+            <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 1px;">(만료일: ${ev.periodEnd})</div>
+          </td>
           <td class="cell-wage">${wageText}</td>
           <td><strong>${ev.remainingDays.toFixed(1)}일</strong></td>
           <td><span class="badge-calc-formula">${isEligible ? ev.formulaText : ev.statusText}</span></td>
           <td class="cell-amount">${amountText}</td>
           <td>
-            <button type="button" class="btn-view-emp" data-id="${emp.emp_id}">조회</button>
+            <button type="button" class="btn-view-emp" data-id="${emp.emp_id}" data-cycle-index="${ev.cycleIndex}">조회</button>
           </td>
         </tr>
       `;
@@ -1981,10 +2058,16 @@
     // Attach click listeners to view buttons
     tbody.querySelectorAll('.btn-view-emp').forEach(btn => {
       btn.addEventListener('click', (e) => {
-        const id = e.target.getAttribute('data-id');
+        const id = e.currentTarget.getAttribute('data-id');
+        const cycleIdx = e.currentTarget.getAttribute('data-cycle-index');
         const emp = snwData.employees.find(x => x.emp_id === id);
         if (emp) {
           loginSuccess(emp, null, true, true);
+          if (cycleIdx !== null && cycleIdx !== undefined && !isNaN(parseInt(cycleIdx, 10))) {
+            setTimeout(() => {
+              selectCycle(parseInt(cycleIdx, 10));
+            }, 80);
+          }
         }
       });
     });
@@ -2004,10 +2087,13 @@
       '직위': item.emp.position || item.emp.rank || '-',
       '입사일자': item.emp.join_date,
       '근속기간': item.emp.service_text,
-      '연차주기만료일': item.eval.periodEnd,
-      '통상시급(원)': item.eval.wage || 0,
+      '정산대상주기': item.eval.periodText,
+      '주기만료일': item.eval.periodEnd,
+      '부여연차(일)': item.eval.cycleTotalGranted || 0,
+      '사용연차(일)': item.eval.cycleUsedDays || 0,
       '남은연차(일)': item.eval.remainingDays,
-      '산정기준': '통상시급 × 8시간 × 1.5 × 남은연차',
+      '통상시급(원)': item.eval.wage || 0,
+      '산정식': item.eval.isEligible ? `${item.eval.wage} × 8 × 1.5 × ${item.eval.remainingDays}` : '-',
       '정산지급액(원)': item.eval.amount,
       '정산적격여부': item.eval.isEligible ? '정산대상' : '정산제외',
       '제외및정산사유': item.eval.statusText
