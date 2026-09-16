@@ -1095,7 +1095,7 @@ body.theme-dark .prev-cycle-banner {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 0;
+  margin: 0 0 8px 0;
 }
 .search-input-wrap {
   position: relative;
@@ -1925,7 +1925,7 @@ body.admin-view-active .main-container {
 }
 
 .settlement-filter-bar {
-  margin: 0 !important;
+  margin: 0 0 8px 0 !important;
 }
 
 .settlement-stat-grid .stat-card-gold {
