@@ -133,6 +133,27 @@
   let currentTenureFilter = 'all'; // 'all' | 'under1' | 'over1'
 
   // 1. Initialization
+  function getTodayFormatted(delimiter = '.') {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}${delimiter}${m}${delimiter}${d}`;
+  }
+
+  function updateSystemDateDisplay(customDate) {
+    const displayEl = document.getElementById('systemDateDisplay');
+    if (!displayEl) return;
+
+    if (gasApiUrl) {
+      const todayStr = customDate ? customDate.replace(/[\/-]/g, '.') : getTodayFormatted('.');
+      displayEl.innerHTML = `<span class="icon">📅</span> 기준일자: <strong>${todayStr}</strong> <span class="badge-live" title="구글 시트 실시간 연동 중">실시간</span>`;
+    } else {
+      const refStr = customDate ? customDate.replace(/[\/-]/g, '.') : ((snwData && snwData.ref_date) ? snwData.ref_date.replace(/[\/-]/g, '.') : getTodayFormatted('.'));
+      displayEl.innerHTML = `<span class="icon">📅</span> 기준일자: <strong>${refStr}</strong> <span class="badge-local" title="오프라인 로컬 데이터">로컬</span>`;
+    }
+  }
+
   async function init() {
     initTheme();
     setupEventListeners();
@@ -157,6 +178,7 @@
     if (snwData) {
       onDataLoaded();
     }
+    updateSystemDateDisplay();
 
     // 브라우저 뒤로가기 시 사이트 밖(구글 등)으로 튕기는 문제 방지: 초기 상태를 login으로 등록
     if (!history.state) {
@@ -181,6 +203,7 @@
 
   // API Config Modal Handlers
   function initApiConfig() {
+    updateSystemDateDisplay();
     if (gasApiUrl) {
       inputGasUrl.value = gasApiUrl;
       apiStatusBox.classList.add('connected');
@@ -203,11 +226,13 @@
         localStorage.setItem('snw_gas_url', val);
         apiStatusBox.classList.add('connected');
         apiStatusText.textContent = '구글 시트 실시간 연동 활성화됨';
+        updateSystemDateDisplay();
         alert('구글 시트 연동 주소가 성공적으로 저장되었습니다!');
       } else {
         localStorage.removeItem('snw_gas_url');
         apiStatusBox.classList.remove('connected');
         apiStatusText.textContent = '현재: 로컬 데이터 모드로 동작 중';
+        updateSystemDateDisplay();
         alert('로컬 데이터 모드로 전환되었습니다.');
       }
       apiModal.style.display = 'none';
@@ -374,6 +399,11 @@
         }
 
         if (result.success && result.employee) {
+          if (result.ref_date) {
+            updateSystemDateDisplay(result.ref_date);
+          } else {
+            updateSystemDateDisplay();
+          }
           loginSuccess(result.employee, rawBirth);
         } else {
           showLoginError(result.message || '일치하는 사원 정보를 찾을 수 없습니다.');
@@ -629,7 +659,8 @@
     if (emp.leave_cycles && emp.leave_cycles.length > 0) {
       return emp.leave_cycles;
     }
-    const refDateStr = (snwData && snwData.ref_date) || '2026/09/03';
+    const todaySlash = getTodayFormatted('/');
+    const refDateStr = gasApiUrl ? todaySlash : ((snwData && snwData.ref_date) || todaySlash);
     const allUsage = emp.all_usage || (emp.current_usage || []).concat(emp.prior_usage || []);
     emp.leave_cycles = computeClientCycles(emp.join_date, refDateStr, allUsage, emp.leave_calc);
     return emp.leave_cycles;
@@ -1320,10 +1351,12 @@
 
         snwData = {
           company: data.company || '(주)에스앤더블류',
+          ref_date: data.ref_date || getTodayFormatted('/'),
           total_employees: data.employees.length,
           summary: calculateAdminSummary(data.employees),
           employees: data.employees
         };
+        updateSystemDateDisplay(data.ref_date);
         populateAdminCycleYearOptions();
         populateAdminDeptOptions();
         populateSettlementMonthSelect();
@@ -1743,7 +1776,8 @@
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "전직원연차현황");
-    XLSX.writeFile(wb, `(주)에스앤더블류_전직원_연차현황_${snwData.ref_date.replace(/\//g,'')}.xlsx`);
+    const fileRefDate = (gasApiUrl ? getTodayFormatted('') : ((snwData && snwData.ref_date) ? snwData.ref_date.replace(/[\/-]/g,'') : getTodayFormatted('')));
+    XLSX.writeFile(wb, `(주)에스앤더블류_전직원_연차현황_${fileRefDate}.xlsx`);
   });
 
   // ==============================================================================
@@ -1806,13 +1840,14 @@
     const sel = document.getElementById('settlementMonthSelect');
     if (!sel) return;
 
-    let refYear = 2026;
-    let refMonth = 9;
-    if (snwData && snwData.ref_date) {
-      const parts = snwData.ref_date.split('/');
+    const now = new Date();
+    let refYear = now.getFullYear();
+    let refMonth = now.getMonth() + 1;
+    if (!gasApiUrl && snwData && snwData.ref_date) {
+      const parts = snwData.ref_date.split(/[\/-]/);
       if (parts.length >= 2) {
-        refYear = parseInt(parts[0], 10) || 2026;
-        refMonth = parseInt(parts[1], 10) || 9;
+        refYear = parseInt(parts[0], 10) || refYear;
+        refMonth = parseInt(parts[1], 10) || refMonth;
       }
     }
     currentSettlementYear = refYear;
