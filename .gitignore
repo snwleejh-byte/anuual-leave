@@ -13,8 +13,13 @@ __pycache__/
 # 로컬 임시 데이터
 data.json
 data.js
+data/data.json
+data/data.js
 
-# 내부 관리 스크립트
+# 내부 관리 스크립트 및 원본 문서 보관함
 google_apps_script.js
 build_data.py
+backend/google_apps_script.js
+backend/build_data.py
+raw_data/
 start_server.bat
