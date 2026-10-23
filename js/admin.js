@@ -432,6 +432,8 @@ window.SNW = window.SNW || {};
         }
       });
     });
+  }
+
   function isEmpUnder1Year(emp) {
     if (!emp) return false;
     if (emp.leave_calc && typeof emp.leave_calc.is_under_1_year === 'boolean') {
