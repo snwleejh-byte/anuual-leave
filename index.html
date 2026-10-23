@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=4.0">
+  <link rel="stylesheet" href="css/style.css?v=5.2">
   <!-- SheetJS for client-side Excel export and upload handling -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
@@ -439,16 +439,16 @@
         </div>
 
         <!-- Admin Tenure Quick Tabs (전체 / 1년 미만 입사자 / 1년 이상자) -->
-        <div class="admin-tenure-tabs">
-          <button type="button" class="admin-tenure-tab active" data-tenure="all" id="tabTenureAll">
+        <div class="admin-tenure-tabs" id="adminTenureTabs">
+          <button type="button" class="admin-tenure-tab active" data-tenure="all" id="tabTenureAll" onclick="window.setTenureFilter ? window.setTenureFilter('all') : (window.SNW && SNW.admin && SNW.admin.setTenureFilter && SNW.admin.setTenureFilter('all'))">
             <span>👥 전체 사원</span>
             <span class="tab-count" id="countTenureAll">0</span>
           </button>
-          <button type="button" class="admin-tenure-tab highlight-tab" data-tenure="under1" id="tabTenureUnder1">
+          <button type="button" class="admin-tenure-tab highlight-tab" data-tenure="under1" id="tabTenureUnder1" onclick="window.setTenureFilter ? window.setTenureFilter('under1') : (window.SNW && SNW.admin && SNW.admin.setTenureFilter && SNW.admin.setTenureFilter('under1'))">
             <span>👶 1년 미만 입사자 (월차 대상)</span>
             <span class="tab-count" id="countTenureUnder1">0</span>
           </button>
-          <button type="button" class="admin-tenure-tab" data-tenure="over1" id="tabTenureOver1">
+          <button type="button" class="admin-tenure-tab" data-tenure="over1" id="tabTenureOver1" onclick="window.setTenureFilter ? window.setTenureFilter('over1') : (window.SNW && SNW.admin && SNW.admin.setTenureFilter && SNW.admin.setTenureFilter('over1'))">
             <span>💼 1년 이상 정규 연차</span>
             <span class="tab-count" id="countTenureOver1">0</span>
           </button>
@@ -502,6 +502,8 @@
           <table class="data-table admin-table" id="adminTable">
             <thead>
               <tr>
+                <th>순번</th>
+                <th>구분</th>
                 <th>사번</th>
                 <th>성명</th>
                 <th>부서</th>
@@ -690,11 +692,11 @@
   </footer>
 
   <!-- Scripts -->
-  <script src="data/data.js?v=4.1"></script>
-  <script src="js/calculation.js?v=4.1"></script>
-  <script src="js/api.js?v=4.1"></script>
-  <script src="js/dashboard.js?v=4.1"></script>
-  <script src="js/admin.js?v=4.1"></script>
-  <script src="js/app.js?v=4.1"></script>
+  <script src="data/data.js?v=5.2"></script>
+  <script src="js/calculation.js?v=5.2"></script>
+  <script src="js/api.js?v=5.2"></script>
+  <script src="js/dashboard.js?v=5.2"></script>
+  <script src="js/admin.js?v=5.2"></script>
+  <script src="js/app.js?v=5.2"></script>
 </body>
 </html>

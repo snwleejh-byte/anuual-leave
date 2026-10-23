@@ -1395,14 +1395,16 @@ body.admin-view-active .main-container {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  margin: 0;
+  margin: 12px 0;
+  position: relative;
+  z-index: 10;
 }
 
 .admin-tenure-tab {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 14px;
+  padding: 8px 16px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
   background: var(--bg-surface);
@@ -1411,7 +1413,12 @@ body.admin-view-active .main-container {
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
+  user-select: none;
   transition: all var(--transition-fast);
+}
+
+.admin-tenure-tab > * {
+  pointer-events: none;
 }
 
 .admin-tenure-tab:hover {
@@ -1444,6 +1451,8 @@ body.admin-view-active .main-container {
 .admin-tenure-tab.highlight-tab.active {
   background: linear-gradient(135deg, #f59e0b, #d97706);
   border-color: #d97706;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.3);
 }
 
 .admin-tenure-tab.highlight-tab:not(.active) {

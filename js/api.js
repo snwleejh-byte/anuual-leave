@@ -140,9 +140,9 @@ window.SNW = window.SNW || {};
             return;
           }
           if (data && data.success) {
-            alert('연결 성공!\n' + (data.message || '구글 시트 API와 정상 통신 중입니다.'));
+            alert('✅ 구글 시트 연결 성공!\n\n' + (data.message || '구글 시트 API와 정상 통신 중입니다.'));
           } else {
-            alert('연동 실패: ' + (data.message || '알 수 없는 응답'));
+            alert('⚠️ 구글 시트 연동 주의:\n\n' + (data.message || '시트 데이터를 확인해주세요.'));
           }
         } catch (err) {
           alert('연결 오류 발생: ' + (err.message || err));

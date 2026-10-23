@@ -59,6 +59,11 @@ window.SNW = window.SNW || {};
     return String(s || '').trim().replace(/\s+/g, '');
   }
 
+  function cleanId(id) {
+    if (!id) return '';
+    return String(id).trim().replace(/\.0$/, '').replace(/[^0-9a-zA-Z]/g, '');
+  }
+
   function getEmployeeWage(emp) {
     if (!emp) return 0;
     if (emp.hourly_wage && typeof emp.hourly_wage === 'number' && emp.hourly_wage > 0) {
@@ -239,9 +244,9 @@ window.SNW = window.SNW || {};
 
     let filtered = data.employees;
     if (currentTenureFilter === 'under1') {
-      filtered = filtered.filter(e => e.leave_calc && e.leave_calc.is_under_1_year);
+      filtered = filtered.filter(e => isEmpUnder1Year(e));
     } else if (currentTenureFilter === 'over1') {
-      filtered = filtered.filter(e => e.leave_calc && !e.leave_calc.is_under_1_year);
+      filtered = filtered.filter(e => !isEmpUnder1Year(e));
     }
 
     const summary = calculateAdminSummary(filtered);
@@ -252,7 +257,7 @@ window.SNW = window.SNW || {};
     if (adminTotalRemaining) adminTotalRemaining.textContent = `${summary.total_remaining.toFixed(1)}일`;
 
     const totalCount = data.employees.length;
-    const under1Count = data.employees.filter(e => e.leave_calc && e.leave_calc.is_under_1_year).length;
+    const under1Count = data.employees.filter(e => isEmpUnder1Year(e)).length;
     const over1Count = totalCount - under1Count;
 
     if (countTenureAll) countTenureAll.textContent = totalCount;
@@ -298,10 +303,10 @@ window.SNW = window.SNW || {};
     let allEmps = data.employees;
 
     if (currentTenureFilter === 'under1') {
-      allEmps = allEmps.filter(e => e.leave_calc && e.leave_calc.is_under_1_year);
+      allEmps = allEmps.filter(e => isEmpUnder1Year(e));
       if (under1NoticeCard) under1NoticeCard.style.display = 'flex';
     } else if (currentTenureFilter === 'over1') {
-      allEmps = allEmps.filter(e => e.leave_calc && !e.leave_calc.is_under_1_year);
+      allEmps = allEmps.filter(e => !isEmpUnder1Year(e));
       if (under1NoticeCard) under1NoticeCard.style.display = 'none';
     } else {
       if (under1NoticeCard) under1NoticeCard.style.display = 'none';
@@ -427,18 +432,55 @@ window.SNW = window.SNW || {};
         }
       });
     });
+  function isEmpUnder1Year(emp) {
+    if (!emp) return false;
+    if (emp.leave_calc && typeof emp.leave_calc.is_under_1_year === 'boolean') {
+      return emp.leave_calc.is_under_1_year;
+    }
+    if (typeof emp.service_years === 'number' && emp.service_years === 0) {
+      return true;
+    }
+    if (emp.join_date && SNW.calc && typeof SNW.calc.parseDateStr === 'function') {
+      const jDate = SNW.calc.parseDateStr(emp.join_date);
+      const rDate = (SNW.state && SNW.state.snwData && SNW.state.snwData.ref_date)
+        ? SNW.calc.parseDateStr(SNW.state.snwData.ref_date)
+        : new Date();
+      if (jDate && rDate) {
+        return Math.floor((rDate - jDate) / (1000 * 60 * 60 * 24)) < 365;
+      }
+    }
+    return false;
   }
 
   function setTenureFilter(filter) {
-    currentTenureFilter = filter;
-    if (adminTenureFilter) {
-      adminTenureFilter.querySelectorAll('.tenure-tab-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.getAttribute('data-tenure') === filter);
-      });
+    currentTenureFilter = filter || 'all';
+
+    // 탭 버튼 활성화 스타일 동기화
+    document.querySelectorAll('.admin-tenure-tab').forEach(btn => {
+      const bFilter = btn.getAttribute('data-tenure') || 'all';
+      if (bFilter === currentTenureFilter) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+
+    // 드롭다운 필터 동기화
+    if (adminTenureFilter && adminTenureFilter.value !== currentTenureFilter) {
+      adminTenureFilter.value = currentTenureFilter;
     }
+
+    // 1년 미만 신입 선택 시, 특정 주기연도 필터로 인해 사원이 가려지지 않도록 연도 필터 자동 'all' 초기화
+    if (currentTenureFilter === 'under1' && adminCycleYearFilter && adminCycleYearFilter.value !== 'all') {
+      adminCycleYearFilter.value = 'all';
+    }
+
     renderAdminSummary();
     renderAdminTable();
   }
+
+  // 글로벌 접근 허용 (인라인 onclick 및 외부 호출 지원)
+  window.setTenureFilter = setTenureFilter;
 
   function switchAdminTab(tab) {
     currentAdminTab = tab;
@@ -1197,7 +1239,151 @@ window.SNW = window.SNW || {};
           alert('업로드한 사원명부 파일에 유효한 데이터가 없습니다.');
           return;
         }
-        alert('사원명부 파일이 확인되었습니다.');
+
+        let headerRowIdx = 0;
+        let headers = rows[0].map(h => String(h || '').trim().replace(/\s+/g, ''));
+        function findIdx(cands) {
+          return headers.findIndex(h => cands.some(k => h.includes(k)));
+        }
+
+        let nameCol = findIdx(['성명', '이름', '사원명']);
+        let idCol = findIdx(['사번', '사원번호']);
+        let joinCol = findIdx(['입사일', '입사일자']);
+
+        if ((nameCol === -1 || joinCol === -1) && rows.length > 2) {
+          headerRowIdx = 1;
+          headers = rows[1].map(h => String(h || '').trim().replace(/\s+/g, ''));
+          nameCol = findIdx(['성명', '이름', '사원명']);
+          idCol = findIdx(['사번', '사원번호']);
+          joinCol = findIdx(['입사일', '입사일자']);
+        }
+
+        if (nameCol === -1 || joinCol === -1) {
+          alert('사원명부 엑셀 파일에서 [성명] 및 [입사일자] 열을 찾을 수 없습니다.');
+          return;
+        }
+
+        let deptCol = findIdx(['부서', '소속']);
+        let posCol = findIdx(['직위', '직급', '직책']);
+        let shiftCol = findIdx(['근무조', '직군', '구분']);
+        let birthCol = findIdx(['생년월일']);
+        let residentCol = findIdx(['주민등록번호', '주민번호']);
+        let retireCol = findIdx(['퇴사일', '퇴사일자', '퇴사']);
+
+        const snwData = SNW.state ? SNW.state.snwData : null;
+        if (!snwData) {
+          alert('시스템 데이터가 로드되지 않았습니다.');
+          return;
+        }
+
+        const existingMap = {};
+        (snwData.employees || []).forEach(emp => {
+          if (emp.emp_id) existingMap[cleanId(emp.emp_id)] = emp;
+          if (emp.name) existingMap[cleanName(emp.name)] = emp;
+        });
+
+        const newEmployees = [];
+        let updatedCount = 0;
+        let addedCount = 0;
+
+        for (let r = headerRowIdx + 1; r < rows.length; r++) {
+          const row = rows[r];
+          if (!row) continue;
+          const rawName = cleanName(row[nameCol]);
+          if (!rawName) continue;
+
+          const rawId = idCol !== -1 ? cleanId(row[idCol]) : '';
+          const joinDateObj = parseExcelDate(row[joinCol]);
+          if (!joinDateObj) continue;
+
+          // 퇴사 여부 체크
+          if (retireCol !== -1) {
+            const retireVal = row[retireCol];
+            const retireDateObj = parseExcelDate(retireVal);
+            if (retireDateObj && new Date() >= retireDateObj) continue;
+            if (retireVal && String(retireVal).trim() === '퇴사') continue;
+          }
+
+          const joinDateStr = `${joinDateObj.getFullYear()}/${String(joinDateObj.getMonth()+1).padStart(2,'0')}/${String(joinDateObj.getDate()).padStart(2,'0')}`;
+          const dept = deptCol !== -1 ? String(row[deptCol] || '-').trim() : '-';
+          const position = posCol !== -1 ? String(row[posCol] || '사원').trim() : '사원';
+          const shift = shiftCol !== -1 ? String(row[shiftCol] || '정규직').trim() : '정규직';
+
+          // 기존 사원 매칭
+          const existing = (rawId && existingMap[rawId]) || existingMap[rawName];
+          if (existing) {
+            existing.name = rawName;
+            if (rawId) existing.emp_id = rawId;
+            existing.dept = dept;
+            existing.position = position;
+            existing.shift = shift;
+            existing.join_date = joinDateStr;
+            updatedCount++;
+            newEmployees.push(existing);
+          } else {
+            // 신규 사원 객체 생성
+            let birthInfo = null;
+            if (birthCol !== -1 && row[birthCol]) {
+              const bObj = parseExcelDate(row[birthCol]);
+              if (bObj) {
+                const bYear = bObj.getFullYear();
+                const bMonth = bObj.getMonth() + 1;
+                const bDay = bObj.getDate();
+                birthInfo = {
+                  date_str: `${bYear}/${String(bMonth).padStart(2,'0')}/${String(bDay).padStart(2,'0')}`,
+                  birth6: `${String(bYear).slice(2)}${String(bMonth).padStart(2,'0')}${String(bDay).padStart(2,'0')}`,
+                  birth8: `${bYear}${String(bMonth).padStart(2,'0')}${String(bDay).padStart(2,'0')}`,
+                  year: bYear,
+                  month: bMonth,
+                  day: bDay
+                };
+              }
+            }
+
+            const newEmp = {
+              emp_id: rawId || `N${Date.now()}`,
+              name: rawName,
+              dept: dept,
+              position: position,
+              rank: position,
+              shift: shift,
+              join_date: joinDateStr,
+              birth_info: birthInfo,
+              current_usage: [],
+              prior_usage: [],
+              all_usage: []
+            };
+
+            const refDateForCalc = snwData.ref_date || SNW.api.getTodayFormatted('/');
+            if (SNW.calc && typeof SNW.calc.calculateLeave === 'function') {
+              newEmp.leave_calc = SNW.calc.calculateLeave(joinDateStr, refDateForCalc, []);
+            }
+            if (SNW.calc && typeof SNW.calc.ensureEmployeeCycles === 'function') {
+              SNW.calc.ensureEmployeeCycles(newEmp, null, snwData, SNW.api.getTodayFormatted);
+            }
+
+            addedCount++;
+            newEmployees.push(newEmp);
+          }
+        }
+
+        snwData.employees = newEmployees;
+        snwData.total_employees = newEmployees.length;
+        snwData.summary = calculateAdminSummary(newEmployees);
+
+        populateAdminCycleYearOptions();
+        populateAdminDeptOptions();
+        populateSettlementMonthSelect();
+        populateSettlementDeptOptions();
+
+        if (currentAdminTab === 'settlement') {
+          renderSettlementView();
+        } else {
+          renderAdminSummary();
+          renderAdminTable();
+        }
+
+        alert(`[사원명부 동기화 완료]\n총 ${newEmployees.length}명의 사원명부가 성공적으로 반영되었습니다.\n(신규 추가: ${addedCount}명 / 정보 갱신: ${updatedCount}명)`);
       } catch (err) {
         alert('사원명부 엑셀 파일 분석 중 오류가 발생했습니다: ' + err.message);
       }
@@ -1221,12 +1407,22 @@ window.SNW = window.SNW || {};
     if (adminDeptFilter) adminDeptFilter.addEventListener('change', renderAdminTable);
     if (adminSortFilter) adminSortFilter.addEventListener('change', renderAdminTable);
 
-    if (adminTenureFilter) {
-      adminTenureFilter.querySelectorAll('.tenure-tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const filter = btn.getAttribute('data-tenure');
+    // 근속 구분 탭 필터 (.admin-tenure-tab) 이벤트 위임
+    const tenureTabsContainer = document.querySelector('.admin-tenure-tabs');
+    if (tenureTabsContainer) {
+      tenureTabsContainer.addEventListener('click', (e) => {
+        const btn = e.target.closest('.admin-tenure-tab');
+        if (btn) {
+          e.preventDefault();
+          const filter = btn.getAttribute('data-tenure') || 'all';
           setTenureFilter(filter);
-        });
+        }
+      });
+    }
+
+    if (adminTenureFilter) {
+      adminTenureFilter.addEventListener('change', (e) => {
+        setTenureFilter(e.target.value);
       });
     }
 
@@ -1307,7 +1503,7 @@ window.SNW = window.SNW || {};
       sortSel.addEventListener('change', renderSettlementView);
     }
 
-    const btnExportSettlement = document.getElementById('btnExportSettlement');
+    const btnExportSettlement = document.getElementById('btnExportSettlementExcel') || document.getElementById('btnExportSettlement');
     if (btnExportSettlement) {
       btnExportSettlement.addEventListener('click', exportSettlementToExcel);
     }
@@ -1315,6 +1511,10 @@ window.SNW = window.SNW || {};
     const wageInput = document.getElementById('uploadWageInput');
     if (wageInput) {
       wageInput.addEventListener('change', handleWageFileUpload);
+    }
+    const wageInputSettlement = document.getElementById('uploadWageInputSettlement');
+    if (wageInputSettlement) {
+      wageInputSettlement.addEventListener('change', handleWageFileUpload);
     }
     const btnUploadWage = document.getElementById('btnUploadWage');
     if (btnUploadWage && wageInput) {
@@ -1349,7 +1549,9 @@ window.SNW = window.SNW || {};
     populateAdminDeptOptions,
     populateSettlementMonthSelect,
     populateSettlementDeptOptions,
-    setupAdminEvents
+    setupAdminEvents,
+    setTenureFilter,
+    isEmpUnder1Year
   };
 
 })(window.SNW);

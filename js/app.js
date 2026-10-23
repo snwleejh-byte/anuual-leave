@@ -373,14 +373,17 @@ window.SNW.state = {
         e.preventDefault();
         if (loginError) loginError.style.display = 'none';
 
-        const rawName = inputName ? inputName.value.trim() : '';
-        const rawBirth = inputBirth ? inputBirth.value.trim().replace(/[^0-9]/g, '') : '';
+        const rawName = inputName ? inputName.value.trim().replace(/\s+/g, '') : '';
+        let cleanBirth = inputBirth ? inputBirth.value.trim().replace(/[^0-9]/g, '') : '';
+        if (cleanBirth.length === 7 || cleanBirth.length === 13) {
+          cleanBirth = cleanBirth.slice(0, 6);
+        }
 
         if (!rawName) {
           showLoginError('성명을 입력해주세요.');
           return;
         }
-        if (!rawBirth || (rawBirth.length !== 6 && rawBirth.length !== 8)) {
+        if (!cleanBirth || (cleanBirth.length !== 6 && cleanBirth.length !== 8)) {
           showLoginError('생년월일 6자리(YYMMDD) 또는 8자리(YYYYMMDD)를 입력해주세요.');
           return;
         }
@@ -393,7 +396,7 @@ window.SNW.state = {
           submitLoginBtn.disabled = true;
           submitLoginBtn.innerHTML = '<span class="btn-text">구글 시트 실시간 조회 중...</span>';
           try {
-            const result = await SNW.api.fetchGasLogin(currentGasUrl, rawName, rawBirth);
+            const result = await SNW.api.fetchGasLogin(currentGasUrl, rawName, cleanBirth);
 
             if (result.success && result.employee) {
               if (result.ref_date) {
@@ -401,18 +404,47 @@ window.SNW.state = {
               } else {
                 SNW.api.updateSystemDateDisplay(null, currentGasUrl, SNW.state.snwData);
               }
-              loginSuccess(result.employee, rawBirth);
+              loginSuccess(result.employee, cleanBirth);
+              return;
             } else {
-              showLoginError(result.message || '일치하는 사원 정보를 찾을 수 없습니다.');
+              console.warn('GAS lookup unsuccessful:', result);
+              // Fallback to local data so the user is never blocked
+              const matched = SNW.calc.findEmployee(rawName, cleanBirth, SNW.state.snwData);
+              if (matched) {
+                console.info('Successfully fell back to local dataset');
+                loginSuccess(matched, cleanBirth);
+                return;
+              }
+              showLoginError(`
+                <strong>[조회 실패]</strong> ${result.message || '일치하는 사원 정보를 찾을 수 없습니다.'}
+                <div style="margin-top:8px; font-size:0.83rem; color:var(--text-secondary);">
+                  ※ 구글 시트의 [사원명부] 탭에 이름(${rawName})과 생년월일이 일치하는지 확인해주세요.
+                </div>
+                <div style="margin-top:10px;">
+                  <button type="button" class="btn-secondary btn-sm" onclick="localStorage.removeItem('snw_gas_url'); location.reload();">
+                    🔄 로컬 데이터 모드로 전환하기
+                  </button>
+                </div>
+              `);
             }
           } catch (err) {
             console.warn('GAS login error, attempting local lookup fallback:', err);
-            const matched = SNW.calc.findEmployee(rawName, rawBirth, SNW.state.snwData);
+            const matched = SNW.calc.findEmployee(rawName, cleanBirth, SNW.state.snwData);
             if (matched) {
-              loginSuccess(matched, rawBirth);
+              loginSuccess(matched, cleanBirth);
               return;
             }
-            showLoginError(`<strong>[연동 오류]</strong> ${err.message || err}<br><br><small style="color:var(--text-secondary);">※ 구글 시트 Apps Script에서 [배포] -> [새 배포] -> [웹 앱] -> [액세스: 모든 사용자]로 정상 배포되었는지 확인해주세요.</small>`);
+            showLoginError(`
+              <strong>[구글 시트 연동 오류]</strong> ${err.message || err}
+              <div style="margin-top:8px; font-size:0.83rem; color:var(--text-secondary);">
+                ※ 구글 시트 배포 설정([액세스 권한: 모든 사용자]) 및 웹 앱 URL을 확인해주세요.
+              </div>
+              <div style="margin-top:10px;">
+                <button type="button" class="btn-secondary btn-sm" onclick="localStorage.removeItem('snw_gas_url'); location.reload();">
+                  🔄 로컬 데이터 모드로 전환하기
+                </button>
+              </div>
+            `);
           } finally {
             submitLoginBtn.disabled = false;
             submitLoginBtn.innerHTML = originalText;
@@ -421,13 +453,13 @@ window.SNW.state = {
         }
 
         // B. Local fallback
-        const matched = SNW.calc.findEmployee(rawName, rawBirth, SNW.state.snwData);
+        const matched = SNW.calc.findEmployee(rawName, cleanBirth, SNW.state.snwData);
         if (!matched) {
           showLoginError(`일치하는 사원 정보가 없습니다.<br>입력하신 이름(${rawName})과 생년월일이 사원명부와 일치하는지 확인해주세요.`);
           return;
         }
 
-        loginSuccess(matched, rawBirth);
+        loginSuccess(matched, cleanBirth);
       });
     }
 

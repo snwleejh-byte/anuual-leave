@@ -25,7 +25,7 @@ window.SNW = window.SNW || {};
       let y = parseInt(parts[0], 10);
       const m = parseInt(parts[1], 10) - 1;
       const d = parseInt(parts[2], 10);
-      if (y < 100) y += 2000;
+      if (y < 100) y += (y >= 30 ? 1900 : 2000);
       if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
         return new Date(y, m, d);
       }
@@ -53,7 +53,13 @@ window.SNW = window.SNW || {};
 
     if (daysWorked < 365) {
       const endObj = new Date(addYearsObj(joinDate, 1).getTime() - 24 * 60 * 60 * 1000);
-      const granted = (leaveCalc && leaveCalc.total_granted !== undefined) ? leaveCalc.total_granted : 11;
+      let granted = (leaveCalc && leaveCalc.total_granted !== undefined) ? leaveCalc.total_granted : null;
+      let ruleDesc = (leaveCalc && leaveCalc.rule_description) || '';
+      if (granted === null) {
+        const fallbackCalc = calculateLeave(joinDate, refDate, null);
+        granted = fallbackCalc ? fallbackCalc.total_granted : 11;
+        ruleDesc = fallbackCalc ? fallbackCalc.rule_description : '입사 1년 미만 월 단위 발생 (최대 11일)';
+      }
       cycles.push({
         cycle_id: 'cycle_curr',
         cycle_type: 'current',
@@ -68,7 +74,7 @@ window.SNW = window.SNW || {};
         start_obj: joinDate,
         end_obj: endObj,
         total_granted: granted,
-        rule_description: (leaveCalc && leaveCalc.rule_description) || '입사 1년 미만 월 단위 발생 (최대 11일)'
+        rule_description: ruleDesc
       });
     } else {
       const candYear = refDate.getFullYear();
@@ -235,17 +241,24 @@ window.SNW = window.SNW || {};
   function findEmployee(name, birthClean, snwData) {
     if (!snwData || !snwData.employees) return null;
 
+    const targetName = String(name || '').trim().replace(/\s+/g, '');
+    let cleanBirth = String(birthClean || '').trim().replace(/[^0-9]/g, '');
+    if (cleanBirth.length === 7 || cleanBirth.length === 13) {
+      cleanBirth = cleanBirth.slice(0, 6);
+    }
+
     const matched = snwData.employees.filter(emp => {
-      if (emp.name !== name) return false;
+      const empNameClean = String(emp.name || '').trim().replace(/\s+/g, '');
+      if (empNameClean !== targetName) return false;
       
       const bInfo = emp.birth_info;
       if (!bInfo) return false;
 
       let isBirth = false;
-      if (birthClean.length === 6) {
-        isBirth = (bInfo.birth6 === birthClean);
-      } else if (birthClean.length === 8) {
-        isBirth = (bInfo.birth8 === birthClean);
+      if (cleanBirth.length === 6) {
+        isBirth = (bInfo.birth6 === cleanBirth);
+      } else if (cleanBirth.length === 8) {
+        isBirth = (bInfo.birth8 === cleanBirth);
       }
       if (!isBirth) return false;
 
@@ -263,6 +276,134 @@ window.SNW = window.SNW || {};
     return matched[0];
   }
 
+  function getAbsenceMonthsCount(joinDate, refDate, absenceDates) {
+    if (!absenceDates || absenceDates.length === 0) {
+      return { count: 0, details: [] };
+    }
+
+    let mCount = (refDate.getFullYear() - joinDate.getFullYear()) * 12 + (refDate.getMonth() - joinDate.getMonth());
+    if (refDate.getDate() < joinDate.getDate()) {
+      mCount -= 1;
+    }
+    mCount = Math.max(0, Math.min(11, mCount));
+
+    let absentMonths = 0;
+    const details = [];
+
+    for (let m = 0; m < mCount; m++) {
+      const winStart = new Date(joinDate.getFullYear(), joinDate.getMonth() + m, joinDate.getDate());
+      const winEnd = new Date(joinDate.getFullYear(), joinDate.getMonth() + m + 1, joinDate.getDate());
+
+      let hadAbsence = false;
+      const matchedDates = [];
+      for (let i = 0; i < absenceDates.length; i++) {
+        let aDate = absenceDates[i];
+        if (typeof aDate === 'string') aDate = parseDateStr(aDate);
+        if (aDate && aDate >= winStart && aDate < winEnd) {
+          hadAbsence = true;
+          matchedDates.push(formatDateObj(aDate));
+        }
+      }
+
+      if (hadAbsence) {
+        absentMonths++;
+        details.push({
+          month_index: m + 1,
+          period: formatDateObj(winStart) + ' ~ ' + formatDateObj(new Date(winEnd.getTime() - 24 * 60 * 60 * 1000)),
+          dates: matchedDates
+        });
+      }
+    }
+
+    return { count: absentMonths, details: details };
+  }
+
+  function calculateLeave(joinDateInput, refDateInput, absenceDates) {
+    const joinDate = parseDateStr(joinDateInput);
+    const refDate = parseDateStr(refDateInput) || new Date();
+    if (!joinDate) return null;
+
+    const diffDays = Math.floor((refDate - joinDate) / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 365) {
+      // 1년 미만 신입 (월 단위 발생)
+      let mCount = (refDate.getFullYear() - joinDate.getFullYear()) * 12 + (refDate.getMonth() - joinDate.getMonth());
+      if (refDate.getDate() < joinDate.getDate()) {
+        mCount -= 1;
+      }
+      mCount = Math.max(0, Math.min(11, mCount));
+
+      const absInfo = getAbsenceMonthsCount(joinDate, refDate, absenceDates || []);
+      const totalGranted = Math.max(0, mCount - absInfo.count);
+
+      const firstAnniv = addYearsObj(joinDate, 1);
+      const periodEnd = new Date(firstAnniv.getTime() - 24 * 60 * 60 * 1000);
+      const dDay = Math.ceil((firstAnniv - refDate) / (1000 * 60 * 60 * 24));
+
+      let ruleDesc = '입사 1년 미만 월 단위 발생 (' + mCount + '개월 경과';
+      if (absInfo.count > 0) {
+        ruleDesc += ' / 결근 ' + absInfo.count + '개월 제외 / ' + totalGranted + '일 발생)';
+      } else {
+        ruleDesc += ' / 최대 11일)';
+      }
+
+      return {
+        is_under_1_year: true,
+        completed_years: 0,
+        total_granted: totalGranted,
+        total_eligible_months: mCount,
+        absence_months_deducted: absInfo.count,
+        absence_details: absInfo.details,
+        max_possible: 11,
+        period_start: formatDateObj(joinDate),
+        period_end: formatDateObj(periodEnd),
+        period_start_obj: joinDate,
+        period_end_obj: periodEnd,
+        next_renewal_date: formatDateObj(firstAnniv),
+        d_day: dDay,
+        rule_description: ruleDesc
+      };
+    } else {
+      // 1년 이상자
+      const candYear = refDate.getFullYear();
+      let lastAnniv = new Date(candYear, joinDate.getMonth(), joinDate.getDate());
+      let nextAnniv;
+
+      if (lastAnniv <= refDate) {
+        nextAnniv = addYearsObj(lastAnniv, 1);
+      } else {
+        lastAnniv = addYearsObj(lastAnniv, -1);
+        nextAnniv = new Date(candYear, joinDate.getMonth(), joinDate.getDate());
+      }
+
+      let compYears = lastAnniv.getFullYear() - joinDate.getFullYear();
+      if (compYears < 1) compYears = 1;
+
+      let granted = 15;
+      if (compYears >= 3) {
+        const addDays = Math.floor((compYears - 1) / 2);
+        granted = Math.min(25, 15 + addDays);
+      }
+
+      const pEnd = new Date(nextAnniv.getTime() - 24 * 60 * 60 * 1000);
+      const dDayRemain = Math.ceil((nextAnniv - refDate) / (1000 * 60 * 60 * 24));
+
+      return {
+        is_under_1_year: false,
+        completed_years: compYears,
+        total_granted: granted,
+        max_possible: granted,
+        period_start: formatDateObj(lastAnniv),
+        period_end: formatDateObj(pEnd),
+        period_start_obj: lastAnniv,
+        period_end_obj: pEnd,
+        next_renewal_date: formatDateObj(nextAnniv),
+        d_day: dDayRemain,
+        rule_description: `근속 ${compYears}년차 법정 연차 (기본 15일 + 근속가산 ${granted - 15}일)`
+      };
+    }
+  }
+
   // Export to SNW namespace
   SNW.calc = {
     parseDateStr,
@@ -271,7 +412,9 @@ window.SNW = window.SNW || {};
     computeClientCycles,
     ensureEmployeeCycles,
     getEmployeeCycleYear,
-    findEmployee
+    findEmployee,
+    getAbsenceMonthsCount,
+    calculateLeave
   };
 
 })(window.SNW);
