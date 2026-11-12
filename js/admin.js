@@ -133,9 +133,11 @@ window.SNW = window.SNW || {};
       try {
         const cachedData = JSON.parse(cachedAdminStr);
         if (cachedData && cachedData.employees && cachedData.employees.length > 0) {
+          const maxUsage = SNW.api ? SNW.api.findMaxUsageDateFromData(cachedData) : null;
+          const cachedRef = maxUsage ? maxUsage.replace(/\./g, '/') : (cachedData.ref_date || '2026/08/31');
           SNW.state.snwData = {
             company: cachedData.company || '(주)에스앤더블류',
-            ref_date: cachedData.ref_date || SNW.api.getTodayFormatted('/'),
+            ref_date: cachedRef,
             total_employees: cachedData.employees.length,
             summary: calculateAdminSummary(cachedData.employees),
             employees: cachedData.employees
@@ -206,15 +208,17 @@ window.SNW = window.SNW || {};
           sessionStorage.setItem('snw_admin_cache', JSON.stringify(data));
         } catch (e) {}
 
-        const todaySlash = SNW.api.getTodayFormatted('/');
+        const maxUsage = SNW.api ? SNW.api.findMaxUsageDateFromData(data) : null;
+        const resolvedRefDate = maxUsage ? maxUsage.replace(/\./g, '/') : (data.ref_date || (SNW.state.snwData ? SNW.state.snwData.ref_date : '') || '2026/08/31');
+
         SNW.state.snwData = {
           company: data.company || '(주)에스앤더블류',
-          ref_date: data.ref_date || todaySlash,
+          ref_date: resolvedRefDate,
           total_employees: data.employees.length,
           summary: calculateAdminSummary(data.employees),
           employees: data.employees
         };
-        SNW.api.updateSystemDateDisplay(data.ref_date, gasApiUrl, SNW.state.snwData);
+        SNW.api.updateSystemDateDisplay(resolvedRefDate, gasApiUrl, SNW.state.snwData);
         populateAdminCycleYearOptions();
         populateAdminDeptOptions();
         populateSettlementMonthSelect();

@@ -18,22 +18,43 @@ window.SNW = window.SNW || {};
     return `${y}${delimiter}${m}${delimiter}${d}`;
   }
 
-  function findMaxUsageDateFromData(snwData) {
-    if (!snwData) return null;
+  function findMaxUsageDateFromData(snwData, specificEmp) {
     let maxDate = null;
-    if (snwData.employees && Array.isArray(snwData.employees)) {
-      snwData.employees.forEach(emp => {
-        const usages = emp.all_usage || (emp.current_usage || []).concat(emp.prior_usage || []);
-        usages.forEach(u => {
-          if (u.date) {
-            const d = u.date.replace(/[\/-]/g, '.');
-            if (!maxDate || d > maxDate) {
-              maxDate = d;
-            }
+
+    function processUsage(usages) {
+      if (!Array.isArray(usages)) return;
+      usages.forEach(u => {
+        if (!u || !u.date) return;
+        const s = String(u.date).trim();
+        const parts = s.split(/[\/\-\.]/);
+        if (parts.length >= 3) {
+          const y = parts[0].padStart(4, '20');
+          const m = parts[1].padStart(2, '0');
+          const d = parts[2].padStart(2, '0');
+          const norm = `${y}.${m}.${d}`;
+          if (!maxDate || norm > maxDate) {
+            maxDate = norm;
           }
-        });
+        }
       });
     }
+
+    const emp = specificEmp || (SNW.state ? SNW.state.currentEmp : null);
+    if (emp) {
+      processUsage(emp.all_usage);
+      processUsage(emp.current_usage);
+      processUsage(emp.prior_usage);
+    }
+
+    const data = snwData || (SNW.state ? SNW.state.snwData : null);
+    if (data && data.employees && Array.isArray(data.employees)) {
+      data.employees.forEach(e => {
+        processUsage(e.all_usage);
+        processUsage(e.current_usage);
+        processUsage(e.prior_usage);
+      });
+    }
+
     return maxDate;
   }
 
@@ -41,19 +62,20 @@ window.SNW = window.SNW || {};
     const displayEl = document.getElementById('systemDateDisplay');
     if (!displayEl) return;
 
+    const maxUsage = findMaxUsageDateFromData(snwData);
+    const todayDot = getTodayFormatted('.');
+
     let finalDateStr = '';
-    if (customDate) {
+
+    // 1순위: 연차사용내역의 가장 마지막(최신) 날짜를 절대 우선으로 반영!
+    if (maxUsage) {
+      finalDateStr = maxUsage;
+    } else if (customDate && customDate.replace(/[\/-]/g, '.') !== todayDot) {
       finalDateStr = customDate.replace(/[\/-]/g, '.');
+    } else if (snwData && snwData.ref_date && snwData.ref_date.replace(/[\/-]/g, '.') !== todayDot) {
+      finalDateStr = snwData.ref_date.replace(/[\/-]/g, '.');
     } else {
-      const maxUsage = findMaxUsageDateFromData(snwData);
-      const snwRef = (snwData && snwData.ref_date) ? snwData.ref_date.replace(/[\/-]/g, '.') : '';
-      if (maxUsage && (!snwRef || maxUsage >= snwRef)) {
-        finalDateStr = maxUsage;
-      } else if (snwRef) {
-        finalDateStr = snwRef;
-      } else {
-        finalDateStr = getTodayFormatted('.');
-      }
+      finalDateStr = (customDate ? customDate.replace(/[\/-]/g, '.') : ((snwData && snwData.ref_date) ? snwData.ref_date.replace(/[\/-]/g, '.') : todayDot));
     }
 
     if (gasApiUrl) {

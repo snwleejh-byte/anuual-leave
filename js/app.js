@@ -201,6 +201,15 @@ window.SNW.state = {
     sessionStorage.setItem('snw_logged_emp_id', emp.emp_id);
     sessionStorage.setItem('snw_logged_name', emp.name);
 
+    // 연차사용내역의 맨 마지막 날짜로 상단 기준일자 즉시 동기화
+    const empMaxUsage = SNW.api ? SNW.api.findMaxUsageDateFromData(SNW.state.snwData, emp) : null;
+    if (empMaxUsage) {
+      if (SNW.state.snwData) {
+        SNW.state.snwData.ref_date = empMaxUsage.replace(/\./g, '/');
+      }
+      SNW.api.updateSystemDateDisplay(empMaxUsage, localStorage.getItem('snw_gas_url') || '', SNW.state.snwData);
+    }
+
     SNW.state.isViewingFromAdmin = Boolean(fromAdmin || sessionStorage.getItem('snw_is_admin') === 'true');
 
     if (loginSection) loginSection.style.display = 'none';
@@ -244,6 +253,13 @@ window.SNW.state = {
           .then(res => {
             if (res && res.success && res.employee && SNW.state.currentEmp && SNW.state.currentEmp.emp_id === emp.emp_id) {
               SNW.state.currentEmp = Object.assign(SNW.state.currentEmp, res.employee);
+              const updatedMax = SNW.api ? SNW.api.findMaxUsageDateFromData(SNW.state.snwData, SNW.state.currentEmp) : null;
+              if (updatedMax) {
+                if (SNW.state.snwData) {
+                  SNW.state.snwData.ref_date = updatedMax.replace(/\./g, '/');
+                }
+                SNW.api.updateSystemDateDisplay(updatedMax, gasApiUrl, SNW.state.snwData);
+              }
               SNW.dashboard.renderEmployeeDashboard(SNW.state.currentEmp);
             }
           })
