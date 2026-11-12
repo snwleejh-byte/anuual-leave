@@ -342,6 +342,21 @@ window.SNW.state = {
 
     SNW.api.updateSystemDateDisplay(null, gasApiUrl, SNW.state.snwData);
 
+    // 구글 시트 연동 활성화 상태인 경우, 즉시 실시간 연차사용내역 최종일자를 조회하여 상단 기준일자 최신화
+    if (gasApiUrl) {
+      SNW.api.fetchGasRefDate(gasApiUrl).then(latestRefDate => {
+        if (latestRefDate) {
+          if (SNW.state.snwData) {
+            SNW.state.snwData.ref_date = latestRefDate;
+          }
+          SNW.api.updateSystemDateDisplay(latestRefDate, gasApiUrl, SNW.state.snwData);
+          if (SNW.admin && typeof SNW.admin.populateSettlementMonthSelect === 'function') {
+            SNW.admin.populateSettlementMonthSelect();
+          }
+        }
+      });
+    }
+
     if (!history.state) {
       history.replaceState({ view: 'login' }, '', window.location.pathname + window.location.search);
     }
@@ -400,6 +415,9 @@ window.SNW.state = {
 
             if (result.success && result.employee) {
               if (result.ref_date) {
+                if (SNW.state.snwData) {
+                  SNW.state.snwData.ref_date = result.ref_date;
+                }
                 SNW.api.updateSystemDateDisplay(result.ref_date, currentGasUrl, SNW.state.snwData);
               } else {
                 SNW.api.updateSystemDateDisplay(null, currentGasUrl, SNW.state.snwData);

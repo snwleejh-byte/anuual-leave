@@ -135,6 +135,7 @@ window.SNW = window.SNW || {};
         if (cachedData && cachedData.employees && cachedData.employees.length > 0) {
           SNW.state.snwData = {
             company: cachedData.company || '(주)에스앤더블류',
+            ref_date: cachedData.ref_date || SNW.api.getTodayFormatted('/'),
             total_employees: cachedData.employees.length,
             summary: calculateAdminSummary(cachedData.employees),
             employees: cachedData.employees
@@ -144,6 +145,9 @@ window.SNW = window.SNW || {};
     }
 
     if (SNW.state.snwData && SNW.state.snwData.employees) {
+      if (SNW.state.snwData.ref_date) {
+        SNW.api.updateSystemDateDisplay(SNW.state.snwData.ref_date, gasApiUrl, SNW.state.snwData);
+      }
       populateAdminCycleYearOptions();
       populateAdminDeptOptions();
       populateSettlementMonthSelect();
@@ -160,11 +164,8 @@ window.SNW = window.SNW || {};
 
     const gasApiUrl = localStorage.getItem('snw_gas_url') || '';
     if (gasApiUrl) {
-      if (!SNW.state.snwData || !SNW.state.snwData.employees) {
-        loadAdminDataFromGas(false, false);
-      } else {
-        loadAdminDataFromGas(false, true);
-      }
+      // 관리자 모드 진입 시 구글 시트의 최신 연차사용내역 기준일자 및 명부 데이터 즉시 백그라운드 갱신
+      loadAdminDataFromGas(true, true);
     }
 
     window.scrollTo({ top: 0, behavior: 'smooth' });

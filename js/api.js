@@ -44,12 +44,13 @@ window.SNW = window.SNW || {};
     let finalDateStr = '';
     if (customDate) {
       finalDateStr = customDate.replace(/[\/-]/g, '.');
-    } else if (snwData && snwData.ref_date) {
-      finalDateStr = snwData.ref_date.replace(/[\/-]/g, '.');
     } else {
       const maxUsage = findMaxUsageDateFromData(snwData);
-      if (maxUsage) {
+      const snwRef = (snwData && snwData.ref_date) ? snwData.ref_date.replace(/[\/-]/g, '.') : '';
+      if (maxUsage && (!snwRef || maxUsage >= snwRef)) {
         finalDateStr = maxUsage;
+      } else if (snwRef) {
+        finalDateStr = snwRef;
       } else {
         finalDateStr = getTodayFormatted('.');
       }
@@ -184,6 +185,31 @@ window.SNW = window.SNW || {};
     return data;
   }
 
+  async function fetchGasRefDate(gasApiUrl) {
+    if (!gasApiUrl) return null;
+    try {
+      const resp = await fetch(`${gasApiUrl}?action=ref_date&t=${Date.now()}`, { method: 'GET', redirect: 'follow' });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data && data.success && data.ref_date) {
+          return data.ref_date;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to fetch real-time ref_date via ref_date action:', e);
+    }
+    try {
+      const resp = await fetch(`${gasApiUrl}?action=ping&t=${Date.now()}`, { method: 'GET', redirect: 'follow' });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data && data.success && data.ref_date) {
+          return data.ref_date;
+        }
+      }
+    } catch (e) {}
+    return null;
+  }
+
   // Export to SNW namespace
   SNW.api = {
     getTodayFormatted,
@@ -191,7 +217,8 @@ window.SNW = window.SNW || {};
     updateSystemDateDisplay,
     initApiConfig,
     fetchGasLogin,
-    fetchGasAdmin
+    fetchGasAdmin,
+    fetchGasRefDate
   };
 
 })(window.SNW);
