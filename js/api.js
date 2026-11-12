@@ -74,7 +74,13 @@ window.SNW = window.SNW || {};
       finalDateStr = customDate.replace(/[\/-]/g, '.');
     } else if (snwData && snwData.ref_date && snwData.ref_date.replace(/[\/-]/g, '.') !== todayDot) {
       finalDateStr = snwData.ref_date.replace(/[\/-]/g, '.');
-    } else {
+    }
+
+    if (!finalDateStr) {
+      if (gasApiUrl) {
+        displayEl.innerHTML = `<span class="icon">📅</span> 기준일자: <strong>구글 시트 확인 중...</strong> <span class="badge-live" title="구글 시트 연차사용내역 최종 입력일자 기준">실시간</span>`;
+        return;
+      }
       finalDateStr = (customDate ? customDate.replace(/[\/-]/g, '.') : ((snwData && snwData.ref_date) ? snwData.ref_date.replace(/[\/-]/g, '.') : todayDot));
     }
 
