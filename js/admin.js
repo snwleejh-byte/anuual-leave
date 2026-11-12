@@ -42,8 +42,8 @@ window.SNW = window.SNW || {};
   let currentTenureFilter = 'all'; // 'all' | 'under1' | 'over1'
   let currentAdminList = [];
   let currentAdminTab = 'overview'; // 'overview' | 'settlement'
-  let currentSettlementYear = 2026;
-  let currentSettlementMonth = 9; // 1 ~ 12
+  let currentSettlementYear = null;
+  let currentSettlementMonth = null;
   let localWageMap = {}; // key: empId or cleanName, value: number
   let currentSettlementList = [];
 
@@ -524,17 +524,52 @@ window.SNW = window.SNW || {};
         refMonth = parseInt(parts[1], 10) || refMonth;
       }
     }
-    currentSettlementYear = refYear;
+    if (!currentSettlementYear) currentSettlementYear = refYear;
     if (!currentSettlementMonth) currentSettlementMonth = refMonth;
 
     let optionsHtml = '';
     for (let m = 1; m <= 12; m++) {
-      const isCurr = (m === refMonth);
-      optionsHtml += `<option value="${m}" ${m === currentSettlementMonth ? 'selected' : ''}>${refYear}년 ${m}월 (${m}월 주기 / ${m}월 귀속)${isCurr ? ' ★기준월' : ''}</option>`;
+      const isCurr = (m === refMonth && currentSettlementYear === refYear);
+      optionsHtml += `<option value="${m}" ${m === currentSettlementMonth ? 'selected' : ''}>${currentSettlementYear}년 ${m}월 (${m}월 주기 / ${m}월 귀속)${isCurr ? ' ★기준월' : ''}</option>`;
     }
     sel.innerHTML = optionsHtml;
     sel.value = String(currentSettlementMonth);
   }
+
+  function changeSettlementMonth(delta) {
+    if (!currentSettlementMonth || !currentSettlementYear) {
+      const now = new Date();
+      let refYear = now.getFullYear();
+      let refMonth = now.getMonth() + 1;
+      const snwData = SNW.state ? SNW.state.snwData : null;
+      const gasApiUrl = localStorage.getItem('snw_gas_url') || '';
+
+      if (!gasApiUrl && snwData && snwData.ref_date) {
+        const parts = snwData.ref_date.split(/[\/-]/);
+        if (parts.length >= 2) {
+          refYear = parseInt(parts[0], 10) || refYear;
+          refMonth = parseInt(parts[1], 10) || refMonth;
+        }
+      }
+      if (!currentSettlementYear) currentSettlementYear = refYear;
+      if (!currentSettlementMonth) currentSettlementMonth = refMonth;
+    }
+
+    let m = currentSettlementMonth + delta;
+    let y = currentSettlementYear;
+    if (m < 1) {
+      m = 12;
+      y -= 1;
+    } else if (m > 12) {
+      m = 1;
+      y += 1;
+    }
+    currentSettlementMonth = m;
+    currentSettlementYear = y;
+    renderSettlementView();
+  }
+
+  window.changeSettlementMonth = changeSettlementMonth;
 
   function populateSettlementDeptOptions() {
     const deptSel = document.getElementById('settlementDeptFilter');
@@ -698,7 +733,7 @@ window.SNW = window.SNW || {};
 
     const cycleBadge = document.getElementById('settlementCycleBadge');
     if (cycleBadge) {
-      cycleBadge.textContent = `${targetMonth}월 귀속 급여 정산 (만료 당월 기준)`;
+      cycleBadge.textContent = `${targetYear}년 ${targetMonth}월 귀속 급여 정산 (만료 당월 기준)`;
     }
     const exportBtnText = document.getElementById('btnExportSettlementText');
     if (exportBtnText) {
@@ -1485,6 +1520,20 @@ window.SNW = window.SNW || {};
       });
     }
 
+    const btnPrevMonth = document.getElementById('btnSettlementPrevMonth');
+    if (btnPrevMonth) {
+      btnPrevMonth.addEventListener('click', () => {
+        changeSettlementMonth(-1);
+      });
+    }
+
+    const btnNextMonth = document.getElementById('btnSettlementNextMonth');
+    if (btnNextMonth) {
+      btnNextMonth.addEventListener('click', () => {
+        changeSettlementMonth(1);
+      });
+    }
+
     const filterModeSel = document.getElementById('settlementFilterMode');
     if (filterModeSel) {
       filterModeSel.addEventListener('change', renderSettlementView);
@@ -1551,6 +1600,7 @@ window.SNW = window.SNW || {};
     populateAdminDeptOptions,
     populateSettlementMonthSelect,
     populateSettlementDeptOptions,
+    changeSettlementMonth,
     setupAdminEvents,
     setTenureFilter,
     isEmpUnder1Year

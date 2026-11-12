@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,11 +8,14 @@
   <meta name="description" content="(주)에스앤더블류 근로기준법 제60조 및 취업규정 기준 임직원 연차 발생 및 사용 내역 실시간 조회 시스템">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700&display=swap"
+    rel="stylesheet">
   <link rel="stylesheet" href="css/style.css?v=5.3">
   <!-- SheetJS for client-side Excel export and upload handling -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
+
 <body class="theme-light">
   <!-- Background Glows -->
   <div class="bg-glow bg-glow-1"></div>
@@ -141,7 +145,7 @@
 
     <!-- 2. EMPLOYEE DASHBOARD SECTION -->
     <section class="dashboard-container" id="dashboardSection" style="display: none;">
-      
+
       <!-- Employee Profile Header -->
       <div class="profile-card">
         <div class="profile-left">
@@ -163,7 +167,8 @@
           </div>
         </div>
         <div class="profile-right">
-          <button type="button" class="btn-dash-back btn-sm" id="btnDashBack" style="display: none;" title="이전 화면으로 돌아가기">
+          <button type="button" class="btn-dash-back btn-sm" id="btnDashBack" style="display: none;"
+            title="이전 화면으로 돌아가기">
             <span id="btnDashBackIcon">◀</span> <span id="btnDashBackText">뒤로가기</span>
           </button>
           <button type="button" class="btn-outline btn-sm" id="dashRefreshBtn" title="내 연차 새로고침">
@@ -282,7 +287,8 @@
         <div class="banner-icon">💡</div>
         <div class="banner-content">
           <h4>입사 1년 미만 근로자 안내</h4>
-          <p>근로기준법 제60조 제2항에 따라 1개월 개근 시 1일의 유급휴가가 발생하며, 입사일로부터 1년이 되는 날까지 사용하실 수 있습니다. (1년 경과 시 15일의 새 연차가 일괄 부여됩니다.)</p>
+          <p>근로기준법 제60조 제2항에 따라 1개월 개근 시 1일의 유급휴가가 발생하며, 입사일로부터 1년이 되는 날까지 사용하실 수 있습니다. (1년 경과 시 15일의 새 연차가 일괄 부여됩니다.)
+          </p>
         </div>
       </div>
 
@@ -440,15 +446,18 @@
 
         <!-- Admin Tenure Quick Tabs (전체 / 1년 미만 입사자 / 1년 이상자) -->
         <div class="admin-tenure-tabs" id="adminTenureTabs">
-          <button type="button" class="admin-tenure-tab active" data-tenure="all" id="tabTenureAll" onclick="window.setTenureFilter ? window.setTenureFilter('all') : (window.SNW && SNW.admin && SNW.admin.setTenureFilter && SNW.admin.setTenureFilter('all'))">
+          <button type="button" class="admin-tenure-tab active" data-tenure="all" id="tabTenureAll"
+            onclick="window.setTenureFilter ? window.setTenureFilter('all') : (window.SNW && SNW.admin && SNW.admin.setTenureFilter && SNW.admin.setTenureFilter('all'))">
             <span>👥 전체 사원</span>
             <span class="tab-count" id="countTenureAll">0</span>
           </button>
-          <button type="button" class="admin-tenure-tab highlight-tab" data-tenure="under1" id="tabTenureUnder1" onclick="window.setTenureFilter ? window.setTenureFilter('under1') : (window.SNW && SNW.admin && SNW.admin.setTenureFilter && SNW.admin.setTenureFilter('under1'))">
+          <button type="button" class="admin-tenure-tab highlight-tab" data-tenure="under1" id="tabTenureUnder1"
+            onclick="window.setTenureFilter ? window.setTenureFilter('under1') : (window.SNW && SNW.admin && SNW.admin.setTenureFilter && SNW.admin.setTenureFilter('under1'))">
             <span>👶 1년 미만 입사자 (월차 대상)</span>
             <span class="tab-count" id="countTenureUnder1">0</span>
           </button>
-          <button type="button" class="admin-tenure-tab" data-tenure="over1" id="tabTenureOver1" onclick="window.setTenureFilter ? window.setTenureFilter('over1') : (window.SNW && SNW.admin && SNW.admin.setTenureFilter && SNW.admin.setTenureFilter('over1'))">
+          <button type="button" class="admin-tenure-tab" data-tenure="over1" id="tabTenureOver1"
+            onclick="window.setTenureFilter ? window.setTenureFilter('over1') : (window.SNW && SNW.admin && SNW.admin.setTenureFilter && SNW.admin.setTenureFilter('over1'))">
             <span>💼 1년 이상 정규 연차</span>
             <span class="tab-count" id="countTenureOver1">0</span>
           </button>
@@ -460,8 +469,10 @@
           <div class="notice-content">
             <h4>근로기준법 제60조 제2항 (1년 미만 입사자의 월차 휴가 안내)</h4>
             <p>
-              1년 미만 신규 입사자는 입사일 기준 <strong>1개월 개근 시 1일씩 발생(최대 11일)</strong>하며, <strong>입사일로부터 1년이 되는 날 모두 소멸</strong>됩니다.<br>
-              <span class="text-warning">※ <strong>결근 관리</strong>: 한 달 산정 기간 중 결근(무단결근·무급결근)이 1회라도 발생한 달은 해당 월의 월차(1일)가 발생하지 않습니다.</span>
+              1년 미만 신규 입사자는 입사일 기준 <strong>1개월 개근 시 1일씩 발생(최대 11일)</strong>하며, <strong>입사일로부터 1년이 되는 날 모두
+                소멸</strong>됩니다.<br>
+              <span class="text-warning">※ <strong>결근 관리</strong>: 한 달 산정 기간 중 결근(무단결근·무급결근)이 1회라도 발생한 달은 해당 월의 월차(1일)가
+                발생하지 않습니다.</span>
             </p>
           </div>
         </div>
@@ -532,11 +543,13 @@
           <div class="settlement-selector-group">
             <span class="settlement-label">📅 정산 대상월:</span>
             <div class="settlement-month-selector">
-              <button type="button" class="btn-month-nav" id="btnSettlementPrevMonth" title="이전달">◀</button>
+              <button type="button" class="btn-month-nav" id="btnSettlementPrevMonth" title="이전달"
+                onclick="window.changeSettlementMonth ? window.changeSettlementMonth(-1) : (window.SNW && SNW.admin && SNW.admin.changeSettlementMonth && SNW.admin.changeSettlementMonth(-1))">◀</button>
               <select id="settlementMonthSelect" class="settlement-month-select">
                 <!-- Dynamically populated -->
               </select>
-              <button type="button" class="btn-month-nav" id="btnSettlementNextMonth" title="다음달">▶</button>
+              <button type="button" class="btn-month-nav" id="btnSettlementNextMonth" title="다음달"
+                onclick="window.changeSettlementMonth ? window.changeSettlementMonth(1) : (window.SNW && SNW.admin && SNW.admin.changeSettlementMonth && SNW.admin.changeSettlementMonth(1))">▶</button>
             </div>
             <span class="settlement-cycle-badge" id="settlementCycleBadge">9월 귀속 급여 정산</span>
           </div>
@@ -561,8 +574,10 @@
             </div>
             <ul class="policy-list">
               <li><strong>만료 당월 기준</strong>: 각 사원의 연차 주기 만료월(입사월)에 해당하는 인원을 당월 귀속 정산 대상자로 집계합니다.</li>
-              <li><strong>당월 신규입사자 및 1년 미만자 제외</strong>: 아직 1년이 경과하지 않은 입사자는 정산 대상에서 <strong>자동 제외</strong>됩니다. (※ 입사 만 1년이 도래하는 월에 정산 대상에 정상 포함)</li>
-              <li><strong>통상시급 미등록자 제외</strong>: <code>[통상시급]</code> 시트에 등록되지 않은 사원은 연차수당 정산 비대상자로 분류되어 집계에서 <strong>자동 제외</strong>됩니다.</li>
+              <li><strong>당월 신규입사자 및 1년 미만자 제외</strong>: 아직 1년이 경과하지 않은 입사자는 정산 대상에서 <strong>자동 제외</strong>됩니다. (※ 입사 만
+                1년이 도래하는 월에 정산 대상에 정상 포함)</li>
+              <li><strong>통상시급 미등록자 제외</strong>: <code>[통상시급]</code> 시트에 등록되지 않은 사원은 연차수당 정산 비대상자로 분류되어 집계에서 <strong>자동
+                  제외</strong>됩니다.</li>
             </ul>
           </div>
         </div>
@@ -669,7 +684,8 @@
         </p>
         <div class="form-group">
           <label for="inputGasUrl">Google Apps Script 웹 앱 URL</label>
-          <input type="url" id="inputGasUrl" placeholder="https://script.google.com/macros/s/.../exec" class="modal-input">
+          <input type="url" id="inputGasUrl" placeholder="https://script.google.com/macros/s/.../exec"
+            class="modal-input">
         </div>
         <div class="api-status-box" id="apiStatusBox">
           <span class="status-dot"></span>
@@ -692,11 +708,12 @@
   </footer>
 
   <!-- Scripts -->
-  <script src="data/data.js?v=5.3"></script>
-  <script src="js/calculation.js?v=5.3"></script>
-  <script src="js/api.js?v=5.3"></script>
-  <script src="js/dashboard.js?v=5.3"></script>
-  <script src="js/admin.js?v=5.3"></script>
-  <script src="js/app.js?v=5.3"></script>
+  <script src="data/data.js?v=5.4"></script>
+  <script src="js/calculation.js?v=5.4"></script>
+  <script src="js/api.js?v=5.4"></script>
+  <script src="js/dashboard.js?v=5.4"></script>
+  <script src="js/admin.js?v=5.4"></script>
+  <script src="js/app.js?v=5.4"></script>
 </body>
+
 </html>
