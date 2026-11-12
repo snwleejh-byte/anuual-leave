@@ -536,7 +536,14 @@ window.SNW = window.SNW || {};
     sel.value = String(currentSettlementMonth);
   }
 
+  let lastMonthNavTime = 0;
   function changeSettlementMonth(delta) {
+    const nowTime = Date.now();
+    if (nowTime - lastMonthNavTime < 200) {
+      return; // 200ms 디바운스로 중복 호출 완전 방지
+    }
+    lastMonthNavTime = nowTime;
+
     if (!currentSettlementMonth || !currentSettlementYear) {
       const now = new Date();
       let refYear = now.getFullYear();
@@ -1522,16 +1529,18 @@ window.SNW = window.SNW || {};
 
     const btnPrevMonth = document.getElementById('btnSettlementPrevMonth');
     if (btnPrevMonth) {
-      btnPrevMonth.addEventListener('click', () => {
+      btnPrevMonth.onclick = (e) => {
+        if (e) e.preventDefault();
         changeSettlementMonth(-1);
-      });
+      };
     }
 
     const btnNextMonth = document.getElementById('btnSettlementNextMonth');
     if (btnNextMonth) {
-      btnNextMonth.addEventListener('click', () => {
+      btnNextMonth.onclick = (e) => {
+        if (e) e.preventDefault();
         changeSettlementMonth(1);
-      });
+      };
     }
 
     const filterModeSel = document.getElementById('settlementFilterMode');
