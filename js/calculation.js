@@ -47,16 +47,17 @@ window.SNW = window.SNW || {};
 
   function computeClientCycles(joinDateStr, refDateStr, allUsage, leaveCalc) {
     const joinDate = parseDateStr(joinDateStr);
-    const refDate = parseDateStr(refDateStr) || new Date();
+    const today = new Date();
     const cycles = [];
-    const daysWorked = Math.floor((refDate - joinDate) / (1000 * 60 * 60 * 24));
+    // 근속일수 및 총 발생 연차는 현재 날짜(today) 기준!
+    const daysWorked = Math.floor((today - joinDate) / (1000 * 60 * 60 * 24));
 
     if (daysWorked < 365) {
       const endObj = new Date(addYearsObj(joinDate, 1).getTime() - 24 * 60 * 60 * 1000);
       let granted = (leaveCalc && leaveCalc.total_granted !== undefined) ? leaveCalc.total_granted : null;
       let ruleDesc = (leaveCalc && leaveCalc.rule_description) || '';
       if (granted === null) {
-        const fallbackCalc = calculateLeave(joinDate, refDate, null);
+        const fallbackCalc = calculateLeave(joinDate, today, null);
         granted = fallbackCalc ? fallbackCalc.total_granted : 11;
         ruleDesc = fallbackCalc ? fallbackCalc.rule_description : '입사 1년 미만 월 단위 발생 (최대 11일)';
       }
@@ -77,10 +78,10 @@ window.SNW = window.SNW || {};
         rule_description: ruleDesc
       });
     } else {
-      const candYear = refDate.getFullYear();
+      const candYear = today.getFullYear();
       let cand = new Date(candYear, joinDate.getMonth(), joinDate.getDate());
       let lastAnniv, nextAnniv;
-      if (cand <= refDate) {
+      if (cand <= today) {
         lastAnniv = cand;
         nextAnniv = addYearsObj(cand, 1);
       } else {
@@ -320,7 +321,9 @@ window.SNW = window.SNW || {};
 
   function calculateLeave(joinDateInput, refDateInput, absenceDates) {
     const joinDate = parseDateStr(joinDateInput);
-    const refDate = parseDateStr(refDateInput) || new Date();
+    // 총 발생 연차 및 1년 미만 월차는 실제 현재 날짜(오늘) 기준 산정! (근태 업데이트 기준일과 분리)
+    const today = new Date();
+    const refDate = today;
     if (!joinDate) return null;
 
     const diffDays = Math.floor((refDate - joinDate) / (1000 * 60 * 60 * 24));

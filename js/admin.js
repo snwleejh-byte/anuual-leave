@@ -1183,7 +1183,7 @@ window.SNW = window.SNW || {};
             }
           });
 
-          const refDateForCalc = newRefDateStr || snwData.ref_date;
+          const refDateForCalc = SNW.api ? SNW.api.getTodayFormatted('/') : new Date();
           if (SNW.calc && typeof SNW.calc.calculateLeave === 'function') {
             const newCalc = SNW.calc.calculateLeave(emp.join_date, refDateForCalc, absenceDates);
             if (newCalc) {
@@ -1403,7 +1403,7 @@ window.SNW = window.SNW || {};
               all_usage: []
             };
 
-            const refDateForCalc = snwData.ref_date || SNW.api.getTodayFormatted('/');
+            const refDateForCalc = SNW.api ? SNW.api.getTodayFormatted('/') : new Date();
             if (SNW.calc && typeof SNW.calc.calculateLeave === 'function') {
               newEmp.leave_calc = SNW.calc.calculateLeave(joinDateStr, refDateForCalc, []);
             }
